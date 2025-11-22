@@ -90,7 +90,7 @@ export default function SongsSection() {
       </div>
 
       {/* Scrollable Song Items - FIX: pb-40 ensures list clears the fixed player bar */}
-      <div className={`max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[#fa4565]/50 scrollbar-track-transparent ${currentSong ? 'pb-40' : 'pb-8'}`}>
+      <div className={`max-h-[75vh] overflow-y-scroll scrollbar-thin scrollbar-thumb-[#fa4565]/50 scrollbar-track-transparent ${currentSong ? 'pb-40' : 'pb-8'}`}>
         {songs.map((song, i) => {
           const isActive = currentSong?.id === song.id;
           return (
