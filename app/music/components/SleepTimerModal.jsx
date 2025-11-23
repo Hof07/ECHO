@@ -254,7 +254,7 @@ export default function SleepTimerModal({
                         </div>
 
                         {/* Set Button */}
-                        <button 
+                        <button
                             onClick={() => localTime > 0 && handleSet(localTime)}
                             disabled={localTime <= 0}
                             className={`mt-4 w-full py-3 rounded-full font-bold text-lg transition shadow-xl ${localTime > 0 
