@@ -52,7 +52,7 @@ export default function Sidebar() {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-white">Your Library</h3>
         <button
-          className="p-2 rounded-lg text-gray-400 hover:bg-[#fa4565] hover:text-black transition"
+          className="p-2 cursor-pointer text-gray-400 hover:bg-[#fa4565] rounded-full hover:text-black transition"
           onClick={() => setShowModal(true)}
         >
           <Plus size={20} />

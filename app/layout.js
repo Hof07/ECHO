@@ -3,6 +3,7 @@ import "./globals.css";
 import { PlayerProvider } from "./music/context/PlayerContext";
 import MusicPlayer from "./music/components/MusicPlayer";
 
+
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
@@ -15,11 +16,10 @@ export const metadata = {
     icon: "/hel.svg",
   },
   other: {
-    'google-site-verification':'L78ASEvDeoDZSAxYrKJ2W_KUtjvbZ8Duc06ncGxxBeQ'
-  }
+    "google-site-verification":
+      "L78ASEvDeoDZSAxYrKJ2W_KUtjvbZ8Duc06ncGxxBeQ",
+  },
 };
-
-
 
 export default function RootLayout({ children }) {
   return (
@@ -27,10 +27,12 @@ export default function RootLayout({ children }) {
       <body
         className={`${outfit.variable} font-sans antialiased bg-white text-gray-900`}
       >
-        <PlayerProvider>
-          {children}
-          <MusicPlayer />
-        </PlayerProvider>
+        
+          <PlayerProvider>
+            {children}
+            <MusicPlayer />
+          </PlayerProvider>
+        
       </body>
     </html>
   );
