@@ -48,7 +48,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-[20%] bg-[#111] h-full p-6 flex flex-col gap-6 overflow-y-auto custom-scroll pb-20">
+    <aside className="hidden lg:flex w-[20%] bg-[#111] h-full p-6 flex-col gap-6 overflow-y-auto custom-scroll pb-20">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-white">Your Library</h3>
         <button

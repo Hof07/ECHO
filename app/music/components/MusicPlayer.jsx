@@ -17,7 +17,7 @@ import {
   Clock,
   Maximize,
   Minimize,
-  Shuffle,
+  // Shuffle, // Not used in the provided code
 } from "lucide-react";
 import SleepTimerModal from "./SleepTimerModal";
 
@@ -25,9 +25,7 @@ import SleepTimerModal from "./SleepTimerModal";
 const formatTime = (sec) => {
   if (!sec || isNaN(sec)) return "0:00";
   const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60)
-    .toString()
-    .padStart(2, "0");
+  const s = Math.floor(sec % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 };
 // -----------------------------------------------------------------------------
@@ -40,7 +38,6 @@ const FullScreenPlayer = ({
   playNext,
   playPrev,
   toggleFullscreen,
-
   progress,
   duration,
   seekTo,
@@ -50,10 +47,8 @@ const FullScreenPlayer = ({
   changeVolume,
   toggleMute,
   handlePrevClick,
-  // --- NEW PROPS FOR SYNCING ---
   isSleeperMode,
   toggleSleeperMode,
-  // --- SYNCED: Removed local isSleeperMode and toggleSleeperMode
 }) => {
   const seekBarRef = useRef(null);
   const [seeking, setSeeking] = useState(false);
@@ -97,12 +92,13 @@ const FullScreenPlayer = ({
 
     img.onload = () => {
       const colorThief = new ColorThief();
-      const [r, g, b] = colorThief.getColor(img);
-      setDominantColor(`rgb(${r}, ${g}, ${b})`);
+      // Ensure the image is loaded before trying to get the color
+      if (img.complete) {
+        const [r, g, b] = colorThief.getColor(img);
+        setDominantColor(`rgb(${r}, ${g}, ${b})`);
+      }
     };
   }, [currentSong]);
-
-  // SYNCED: Removed local state and redefinition of toggleSleeperMode
 
   return (
     <div
@@ -115,18 +111,18 @@ const FullScreenPlayer = ({
       <button
         onClick={toggleFullscreen}
         className="absolute top-4 cursor-pointer right-4 p-3 rounded-full hover:bg-white/20 
-    backdrop-blur-md transition border border-white/30 shadow-lg"
+          backdrop-blur-md transition border border-white/30 shadow-lg text-white"
         title="Exit Fullscreen"
       >
         <Minimize className="w-6 h-6 opacity-90 hover:opacity-100" />
       </button>
 
-      {/* 🎵 Glass Card */}
+      {/* 🎵 Glass Card (Responsive to Max Width) */}
       <div
         className="
-        w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between 
-        shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15
-      "
+          w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between 
+          shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15
+        "
       >
         {/* Album Artwork */}
         <img
@@ -151,7 +147,7 @@ const FullScreenPlayer = ({
         <div className="mb-6">
           <div
             ref={seekBarRef}
-            className="relative w-full h-3 cursor-pointer bg-white/20 rounded-full cursor-pointer select-none"
+            className="relative w-full h-3 cursor-pointer bg-white/20 rounded-full select-none"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -177,7 +173,6 @@ const FullScreenPlayer = ({
               
         {/* Controls */}
         <div className="flex items-center justify-between mb-6">
-          {/* SYNCED: Using prop toggleSleeperMode and isSleeperMode */}
           <button
             onClick={toggleSleeperMode}
             title="Sleep Mode (30% Volume)"
@@ -254,7 +249,7 @@ const FullScreenPlayer = ({
 };
 
 // -----------------------------------------------------------------------------
-// --- MAIN MusicPlayer COMPONENT (REMAINS MOSTLY UNCHANGED) ---
+// --- MAIN MusicPlayer COMPONENT ---
 // -----------------------------------------------------------------------------
 
 export default function MusicPlayer() {
@@ -271,30 +266,26 @@ export default function MusicPlayer() {
     toggleLoop,
     volume,
     changeVolume,
-    // sleepTimerTimeRemaining, // Placeholder context prop
-    // setSleepTimer, // Placeholder context function
-    // cancelSleepTimer, // Placeholder context function
+    // sleepTimerTimeRemaining, // Context props assumed to be there if needed
+    // setSleepTimer,
+    // cancelSleepTimer,
   } = usePlayer();
 
   const [seeking, setSeeking] = useState(false);
-  // LIFTED STATE: isSleeperMode and prevVolume
   const [isSleeperMode, setIsSleeperMode] = useState(false);
   const [prevVolume, setPrevVolume] = useState(volume > 0 ? volume : 1.0);
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
-
-  const [isFullScreen, setIsFullScreen] = useState(false); // <--- New State
-
-  
+  const [isFullScreen, setIsFullScreen] = useState(false); 
   const [isSlowPlayback, setIsSlowPlayback] = useState(false);
-  const [prevRate, setPrevRate] = useState(1.0);
+  const [prevRate, setPrevRate] = useState(1.0); // Placeholder for playback rate logic
 
   const seekBarRef = useRef(null);
 
   useEffect(() => {
     // Keep prevVolume updated for when volume is changed manually
+    // Also, if volume is changed away from 0.3, exit sleeper mode
     if (volume > 0 && volume !== 0.3) {
       setPrevVolume(volume);
-      // If volume is changed from 0.3 to something else, exit sleeper mode
       if (isSleeperMode) {
         setIsSleeperMode(false);
       }
@@ -303,7 +294,7 @@ export default function MusicPlayer() {
     if (volume === 0 && prevVolume === 0) {
       setPrevVolume(1.0);
     }
-  }, [volume]);
+  }, [volume, isSleeperMode, prevVolume]);
   
   // Re-sync isSleeperMode if volume is programmatically set to 0.3 outside of this component
   useEffect(() => {
@@ -319,8 +310,6 @@ export default function MusicPlayer() {
   if (!currentSong) return null;
 
   // --- UTILITY & HANDLER FUNCTIONS ---
-
-  // Re-definition of formatTime removed as it's defined at the top
 
   const updateSeek = (clientX) => {
     const rect = seekBarRef.current.getBoundingClientRect();
@@ -357,7 +346,7 @@ export default function MusicPlayer() {
     }
   };
 
-  // LIFTED HANDLER: toggleSleeperMode
+  // HANDLER: toggleSleeperMode
   const toggleSleeperMode = () => {
     const newSleeperState = !isSleeperMode;
     setIsSleeperMode(newSleeperState);
@@ -373,7 +362,7 @@ export default function MusicPlayer() {
       changeVolume(prevVolume > 0 ? prevVolume : 1.0);
     }
 
-    setIsSlowPlayback(false); // Often a side effect to ensure proper mode
+    setIsSlowPlayback(false); 
   };
 
   const toggleMute = () => {
@@ -406,12 +395,12 @@ export default function MusicPlayer() {
     setIsSleeperMode(false);
   };
 
-  // --- NEW: Fullscreen Toggle ---
+  // NEW: Fullscreen Toggle
   const toggleFullscreen = () => {
     setIsFullScreen((prev) => !prev);
   };
 
-  // --- NEW: Timer Integration Functions (Placeholder) ---
+  // NEW: Timer Integration Functions (Placeholder)
   const handleSetTimer = (timeInSeconds) => {
     // ASSUMED: setSleepTimer(timeInSeconds);
     setIsTimerModalOpen(false);
@@ -445,7 +434,7 @@ export default function MusicPlayer() {
         changeVolume={changeVolume}
         toggleMute={toggleMute}
         handlePrevClick={handlePrevClick}
-        // --- NEW PROPS PASSED FOR SYNCING ---
+        // PROPS PASSED FOR SYNCING
         isSleeperMode={isSleeperMode}
         toggleSleeperMode={toggleSleeperMode}
       />
@@ -458,14 +447,15 @@ export default function MusicPlayer() {
       {/* 1. RENDER THE MODAL */}
       <SleepTimerModal
         isActive={isTimerModalOpen}
-        timeRemaining={0}
+        timeRemaining={0} // Replace with actual context prop if available
         onSetTimer={handleSetTimer}
         onCancelTimer={handleCancelTimer}
         onClose={() => setIsTimerModalOpen(false)}
       />
 
-      {/* 2. PLAYER BAR JSX (Unchanged) */}
-      <div className="fixed bottom-0 w-full bg-black text-white pt-4 pb-3 px-5 z-50 shadow-xl border-t border-[#222]">
+      {/* 2. PLAYER BAR JSX */}
+      <div className="fixed bottom-0 w-full bg-black text-white pt-4 pb-3 px-3 sm:px-5 z-50 shadow-xl border-t border-[#222]">
+        
         {/* --- Seek Bar --- */}
         <div
           ref={seekBarRef}
@@ -497,16 +487,17 @@ export default function MusicPlayer() {
           <span>{formatTime(duration)}</span>
         </div>
 
-        {/* --- Controls and Info --- */}
-        <div className="flex items-center justify-between mt-3">
+        {/* --- Controls and Info (Responsive Layout) --- */}
+        <div className="flex items-center justify-between mt-3 flex-wrap sm:flex-nowrap">
+          
           {/* 1. Song Info (Left) */}
-          <div className="flex items-center gap-3 w-1/4">
+          <div className="flex items-center gap-3 w-full sm:w-1/4 mb-3 sm:mb-0 order-1">
             <img
               src={currentSong.cover_url}
               alt="cover"
-              className="w-12 h-12 rounded object-cover"
+              className="w-12 h-12 rounded object-cover flex-shrink-0"
             />
-            <div className="leading-tight truncate">
+            <div className="leading-tight truncate min-w-0">
               <h4 className="font-semibold text-sm truncate">
                 {currentSong.title}
               </h4>
@@ -519,14 +510,14 @@ export default function MusicPlayer() {
           </div>
 
           {/* 2. Main Buttons (Center) */}
-          <div className="flex items-center gap-4 w-1/2 justify-center">
+          <div className="flex items-center gap-4 w-full sm:w-1/2 justify-center order-3 sm:order-2">
             <button onClick={handlePrevClick} title="Previous/Restart">
               <SkipBack className="cursor-pointer w-5 h-5 opacity-75 hover:opacity-100 transition" />
             </button>
 
             <button
               onClick={togglePlay}
-              className="cursor-pointer text-black p-3 rounded-full hover:scale-110 transition bg-[#fa4565]"
+              className="cursor-pointer text-black p-3 rounded-full hover:scale-110 transition bg-[#fa4565] flex-shrink-0"
               title={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? (
@@ -551,9 +542,9 @@ export default function MusicPlayer() {
             </button>
           </div>
 
-          {/* 3. Special Controls (Right) */}
-          <div className="flex items-center gap-2 w-1/4 justify-end relative">
-            {/* ... other special buttons ... */}
+          {/* 3. Special Controls (Right - Moved to order 2 on mobile, order 3 on desktop) */}
+          <div className="flex items-center gap-2 w-full sm:w-1/4 justify-end relative mb-3 sm:mb-0 order-2 sm:order-3  bottom-[50px]">
+            
             <button
               onClick={() => setIsTimerModalOpen(true)}
               title="Set Sleep Timer"
@@ -578,7 +569,7 @@ export default function MusicPlayer() {
               />
             </button>
 
-            {/* SYNCED: Using lifted toggleSleeperMode and isSleeperMode */}
+            {/* SYNCED: Sleeper Mode Button */}
             <button
               onClick={toggleSleeperMode}
               title="Sleep Mode (30% Volume)"

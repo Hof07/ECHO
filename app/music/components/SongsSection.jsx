@@ -57,10 +57,10 @@ function SongsSection() {
       (
         <div className="bg-[#121212] rounded-xl shadow-2xl overflow-hidden">
           <div
-            className="grid grid-cols-[32px_4fr_3fr_1fr]
-  md:grid-cols-[32px_5fr_3fr_1fr_1fr]
-  text-gray-400 text-xs uppercase font-light
-  border-b border-[#222] py-3 px-4 sticky top-0 bg-[#121212] z-10"
+            className="grid grid-cols-[32px_1fr_32px]
+md:grid-cols-[32px_5fr_3fr_1fr_1fr]
+text-gray-400 text-[10px] md:text-xs uppercase font-light
+border-b border-[#222] py-2 md:py-3 px-3 md:px-4 sticky top-0 bg-[#121212] z-10"
           >
             <Hash className="w-4 h-4" />
             <div>Title</div>
@@ -77,15 +77,14 @@ function SongsSection() {
                   key={song.id}
                   ref={isActive ? activeSongRef : null}
                   onClick={() => handlePlay(song, i)}
-                  className={`grid grid-cols-[32px_4fr_3fr_1fr] md:grid-cols-[32px_5fr_3fr_1fr_1fr]
-                  items-center py-3 px-4 group cursor-pointer border-b border-[#1b1b1b]
-                  transition-all duration-200 select-none
-                  ${
+                  className={`grid grid-cols-[32px_1fr_32px]
+md:grid-cols-[32px_5fr_3fr_1fr_1fr]
+items-center py-2 md:py-3 px-3 md:px-4 group cursor-pointer border-b border-[#1b1b1b]
+transition-all duration-200 select-none ${
                     isActive
                       ? "text-[#fa4565] font-semibold"
                       : "text-gray-300 hover:text-[#fa4565]"
-                  }
-                  `}
+                  }`}
                 >
                   <div className="relative flex items-center justify-center w-4 h-4 group">
                     {!isActive ? (
@@ -209,7 +208,7 @@ function SongsSection() {
   );
 
   return (
-    <div className="w-[75%] mx-auto pt-8 pb-10 text-white">
+    <div className="w-full md:w-[75%] mx-auto pt-8 pb-10 text-white">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Music2 className="w-7 h-7 text-[#fa4565]" />
