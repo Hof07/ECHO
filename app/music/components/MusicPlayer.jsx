@@ -543,7 +543,7 @@ export default function MusicPlayer() {
           </div>
 
           {/* 3. Special Controls (Right - Moved to order 2 on mobile, order 3 on desktop) */}
-          <div className="flex items-center gap-2 w-full sm:w-1/4 justify-end relative mb-3 sm:mb-0 order-2 sm:order-3  bottom-[50px]">
+          <div className="flex items-center gap-2 w-full sm:w-1/4  justify-end relative mb-3 sm:mb-0 order-2 sm:order-3 ">
             
             <button
               onClick={() => setIsTimerModalOpen(true)}
