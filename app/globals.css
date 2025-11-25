@@ -56,3 +56,13 @@ body {
 .animate-fadeIn {
   animation: fadeIn 0.4s ease forwards;
 }
+
+@keyframes equalizer {
+  0% { height: 4px; }
+  50% { height: 12px; }
+  100% { height: 4px; }
+}
+
+.animate-equalizer {
+  animation: equalizer 0.6s infinite ease-in-out;
+}

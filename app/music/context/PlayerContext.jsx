@@ -154,7 +154,7 @@ export const PlayerProvider = ({ children }) => {
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
-
+  const currentSongId = currentSong?.id || null;
   return (
     <PlayerContext.Provider
       value={{
@@ -166,6 +166,7 @@ export const PlayerProvider = ({ children }) => {
         duration,
         isLoop,
         volume,
+        currentSongId,
         playSong,
         togglePlay,
         playNext,
