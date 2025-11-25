@@ -1,19 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, Music, MoreVertical, Trash2, ListPlus } from "lucide-react";
+import { Plus, Music, MoreVertical, Trash2, ListPlus, Image } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabaseClient";
 import CreatePlaylistModal from "../components/CreatePlaylistModal";
-import AddSongToPlaylistModal from "../components/AddSongToPlaylistModal"; // <-- Imported new modal
+import AddSongToPlaylistModal from "../components/AddSongToPlaylistModal";
 
 export default function Sidebar() {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
-  
-  // State to manage opening the AddSong modal for a specific playlist
-  const [playlistIdToAdd, setPlaylistIdToAdd] = useState(null); 
+  const [playlistIdToAdd, setPlaylistIdToAdd] = useState(null);
+  const [generatingCover, setGeneratingCover] = useState(null); // Track which playlist is generating cover
 
   const getPlaylists = async () => {
     const { data } = await supabase
@@ -26,15 +25,13 @@ export default function Sidebar() {
 
   useEffect(() => {
     getPlaylists();
-    // Close menu when clicking anywhere else
     const handleClickOutside = () => setActiveMenuId(null);
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
 
   const deletePlaylist = async (id) => {
-    setActiveMenuId(null); 
-
+    setActiveMenuId(null);
     const previousPlaylists = [...playlists];
     setPlaylists(playlists.filter((p) => p.id !== id));
 
@@ -42,8 +39,44 @@ export default function Sidebar() {
 
     if (error) {
       console.error("Delete failed:", error);
-      alert(`Error: ${error.message}`); 
-      setPlaylists(previousPlaylists); 
+      alert(`Error: ${error.message}`);
+      setPlaylists(previousPlaylists);
+    }
+  };
+
+  // 🟢 NEW: Generate playlist cover from songs
+  const generatePlaylistCover = async (playlistId) => {
+    setActiveMenuId(null);
+    setGeneratingCover(playlistId);
+
+    try {
+      const response = await fetch('/api/generate-playlist-cover', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ playlistId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate cover');
+      }
+
+      // Update the playlist in state with new image
+      setPlaylists(prev => prev.map(p => 
+        p.id === playlistId 
+          ? { ...p, image_url: result.url } 
+          : p
+      ));
+
+      alert('Playlist cover generated successfully!');
+    } catch (error) {
+      console.error('Error generating cover:', error);
+      alert(`Error generating cover: ${error.message}`);
+    } finally {
+      setGeneratingCover(null);
     }
   };
 
@@ -66,7 +99,6 @@ export default function Sidebar() {
           {playlists.map((p) => (
             <div 
               key={p.id} 
-              // FIX: Dynamic Z-index to prevent clipping
               className={`relative group ${activeMenuId === p.id ? "z-50" : "z-0"}`}
             >
               <Link
@@ -75,9 +107,18 @@ export default function Sidebar() {
               >
                 <div className="relative h-12 w-12 min-w-[3rem] rounded-md overflow-hidden bg-gray-800">
                   {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+                    <img 
+                      src={p.image_url} 
+                      alt={p.name} 
+                      className="h-full w-full object-cover" 
+                    />
                   ) : (
                     <Music size={20} className="text-gray-400 m-auto h-full" />
+                  )}
+                  {generatingCover === p.id && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col overflow-hidden">
@@ -111,17 +152,28 @@ export default function Sidebar() {
                     className="absolute right-0 top-10 w-48 bg-[#222] border border-gray-700 rounded-lg shadow-2xl overflow-hidden flex flex-col py-1 z-[100]"
                     onClick={(e) => e.stopPropagation()} 
                   >
-                    {/* --- ADD SONG BUTTON --- */}
+                    {/* Generate Cover Button */}
+                    <button 
+                      onClick={() => generatePlaylistCover(p.id)}
+                      disabled={generatingCover === p.id}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 text-left w-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Image size={16} />
+                      {generatingCover === p.id ? 'Generating...' : 'Generate Cover'}
+                    </button>
+
+                    {/* Add Song Button */}
                     <button 
                       onClick={() => {
-                          setPlaylistIdToAdd(p.id); // Set the ID to open the modal
-                          setActiveMenuId(null); // Close the dropdown menu
+                        setPlaylistIdToAdd(p.id);
+                        setActiveMenuId(null);
                       }}
                       className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 text-left w-full cursor-pointer"
                     >
                       <ListPlus size={16} /> Add Song
                     </button>
                     
+                    {/* Delete Playlist Button */}
                     <button 
                       onClick={() => deletePlaylist(p.id)}
                       className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-900/20 text-left w-full cursor-pointer"
@@ -138,7 +190,6 @@ export default function Sidebar() {
       
       {showModal && <CreatePlaylistModal close={() => setShowModal(false)} refresh={getPlaylists} />}
       
-      {/* RENDER THE ADD SONG MODAL */}
       {playlistIdToAdd && (
         <AddSongToPlaylistModal 
           playlistId={playlistIdToAdd} 

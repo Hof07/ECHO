@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
-import { Clock, Play, Hash } from "lucide-react";
+import { Clock, Play, Hash, Image, RefreshCw } from "lucide-react";
 import { usePlayer } from "@/app/music/context/PlayerContext";
 
 export default function PlaylistPage() {
@@ -13,6 +13,7 @@ export default function PlaylistPage() {
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [generatingCover, setGeneratingCover] = useState(false);
 
   const activeSongRef = useRef(null);
   const { playSong, currentSongId } = usePlayer();
@@ -28,15 +29,16 @@ export default function PlaylistPage() {
     const fetchData = async () => {
       try {
         // Playlist info
-        const { data: playlistData } = await supabase
+        const { data: playlistData, error: playlistError } = await supabase
           .from("playlists")
           .select("*")
           .eq("id", id)
           .single();
 
+        if (playlistError) throw playlistError;
         setPlaylist(playlistData);
 
-        // Songs inside playlist (artist stored IN songs table)
+        // Songs inside playlist
         const { data: playlistSongs, error: songsErr } = await supabase
           .from("playlist_songs")
           .select(
@@ -53,11 +55,7 @@ export default function PlaylistPage() {
           )
           .eq("playlist_id", id);
 
-        if (songsErr) {
-          console.log(songsErr);
-          setErr("Failed loading songs");
-          return;
-        }
+        if (songsErr) throw songsErr;
 
         const extracted = playlistSongs.map((row) => ({
           ...row.song,
@@ -66,8 +64,8 @@ export default function PlaylistPage() {
 
         setSongs(extracted);
       } catch (e) {
-        console.log(e);
-        setErr("Failed loading playlist");
+        console.error("Fetch error:", e);
+        setErr("Failed loading playlist: " + e.message);
       }
 
       setLoading(false);
@@ -75,6 +73,61 @@ export default function PlaylistPage() {
 
     fetchData();
   }, [id]);
+
+  // 🟢 Generate playlist cover from songs
+  const generatePlaylistCover = async () => {
+    if (!playlist?.id) return;
+    
+    setGeneratingCover(true);
+    
+    try {
+      console.log("Generating cover for playlist:", playlist.id);
+      
+      const response = await fetch('/api/generate-playlist-cover', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ playlistId: playlist.id }),
+      });
+
+      // Check if response is HTML (error page)
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 200));
+        throw new Error('Server returned an error page. Check API route.');
+      }
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+      }
+
+      // Update the playlist with new image URL
+      setPlaylist(prev => ({
+        ...prev,
+        image_url: result.url + '?t=' + Date.now() // Cache bust
+      }));
+
+      console.log('Playlist cover generated successfully!');
+    } catch (error) {
+      console.error('Error generating cover:', error);
+      
+      // More specific error messages
+      let errorMessage = error.message;
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Network error: Could not reach the server. Check if the API route exists.';
+      } else if (error.message.includes('error page')) {
+        errorMessage = 'Server error: API route might be missing or has an error. Check console for details.';
+      }
+      
+      alert(`Error generating cover: ${errorMessage}`);
+    } finally {
+      setGeneratingCover(false);
+    }
+  };
 
   const handlePlay = (song, i) => {
     playSong(song, i, songs);
@@ -91,7 +144,6 @@ export default function PlaylistPage() {
   const ListView = useMemo(
     () => (
       <div className="bg-[#121212] rounded-xl shadow-2xl overflow-hidden mt-6">
-
         {/* Header Row */}
         <div
           className="grid grid-cols-[32px_1fr_32px]
@@ -187,17 +239,78 @@ export default function PlaylistPage() {
 
   return (
     <main className="flex-1 p-8 overflow-y-auto custom-scroll text-white bg-[#1a1a1a]">
-
       {/* Playlist Header */}
-      <header className="flex items-end gap-6 p-4 rounded-lg bg-gradient-to-b from-[#333] to-[#1a1a1a]">
-        <img
-          src={playlist?.image_url || "/placeholder.png"}
-          className="w-48 h-48 rounded-md object-cover"
-        />
-        <div className="flex flex-col gap-2">
+      <header className="flex items-end gap-6 p-4 rounded-lg bg-gradient-to-b from-[#333] to-[#1a1a1a] relative">
+        {/* Cover Image with Generate Button */}
+        <div className="relative group">
+          <img
+            src={playlist?.image_url || "/placeholder.png"}
+            className="w-48 h-48 rounded-md object-cover shadow-2xl"
+          />
+          
+          {/* Generate Cover Button - Only show if there are songs */}
+          {songs.length > 0 && (
+            <button
+              onClick={generatePlaylistCover}
+              disabled={generatingCover}
+              className="absolute bottom-2 right-2 p-2 bg-black/70 hover:bg-black/90 
+                rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100
+                disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Generate cover from songs"
+            >
+              {generatingCover ? (
+                <RefreshCw className="w-4 h-4 text-white animate-spin" />
+              ) : (
+                <Image className="w-4 h-4 text-white" />
+              )}
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 flex-1">
           <p className="text-sm text-gray-300">Playlist</p>
-          <h1 className="text-6xl font-extrabold">{playlist?.title}</h1>
-          <p className="text-sm">{songs.length} songs</p>
+          <h1 className="text-4xl md:text-6xl font-extrabold break-words">
+            {playlist?.title}
+          </h1>
+          
+          <div className="flex items-center gap-4 flex-wrap">
+            <p className="text-sm text-gray-300">
+              {songs.length} {songs.length === 1 ? 'song' : 'songs'}
+            </p>
+            
+            {/* Generate Cover Button for Mobile */}
+            {songs.length > 0 && (
+              <button
+                onClick={generatePlaylistCover}
+                disabled={generatingCover}
+                className="md:hidden flex items-center gap-2 px-3 py-1 bg-[#fa4565] 
+                  hover:bg-[#e03a58] rounded-full text-xs transition-all duration-200
+                  disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generatingCover ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Image className="w-3 h-3" />
+                    Generate Cover
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Info about cover generation */}
+          {songs.length > 0 && (
+            <p className="text-xs text-gray-400 mt-2 max-w-md">
+              {playlist?.image_url ? 
+                "Cover generated from song artworks" : 
+                "Click the image button to create a cover from your songs"
+              }
+            </p>
+          )}
         </div>
       </header>
 
