@@ -98,6 +98,23 @@ const FullScreenPlayer = ({
       setDominantColor(`rgb(${r}, ${g}, ${b})`);
     };
   }, [currentSong]);
+  const [isSleeperMode, setIsSleeperMode] = useState(false);
+
+  const toggleSleeperMode = () => {
+    const newSleeperState = !isSleeperMode;
+    setIsSleeperMode(newSleeperState);
+
+    if (newSleeperState) {
+      if (volume !== 0.3) {
+        setPrevVolume(volume > 0 ? volume : 1.0);
+      }
+      changeVolume(0.3);
+    } else {
+      changeVolume(prevVolume > 0 ? prevVolume : 1.0);
+    }
+
+    setIsSlowPlayback(false);
+  };
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-[100] transition-all duration-700"
@@ -168,12 +185,22 @@ const FullScreenPlayer = ({
             <span>{formatTime(duration - progress)}</span>
           </div>
         </div>
-
+              
         {/* Controls */}
         <div className="flex items-center justify-between mb-6">
-          <button className="opacity-70 cursor-pointer hover:opacity-100">
-            <Shuffle className="w-6 h-6" />
-          </button>
+          <button
+              onClick={toggleSleeperMode}
+              title="Sleep Mode (30% Volume)"
+              className="p-1 transition-colors cursor-pointer"
+            >
+              <MoonStar
+                className={`w-5 h-5 ${
+                  isSleeperMode
+                    ? "text-[#fa4565]"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              />
+            </button>
           <button
             onClick={handlePrevClick}
             className="opacity-70 cursor-pointer hover:opacity-100"
