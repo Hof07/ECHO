@@ -301,6 +301,7 @@ export default function App() {
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 transition-all duration-1000 delay-400 opacity-0 animate-fade-in-up-delay-400">
+          <a href='/music'>
             <button
               className="text-black font-bold text-lg px-8 sm:px-10 py-3 sm:py-4 rounded-full
                                 flex items-center justify-center space-x-2 transition transform hover:scale-105 shadow-xl font-bold
@@ -313,11 +314,14 @@ export default function App() {
               <Play size={24} fill='currentColor' />
               <span>Start Free Trial</span>
             </button>
-            <button className="border border-gray-600 text-white font-semibold text-lg px-8 sm:px-10 py-3 sm:py-4 rounded-full
+          </a>
+            <a href='/music'>
+              <button className="border border-gray-600 text-white font-semibold text-lg px-8 sm:px-10 py-3 sm:py-4 rounded-full
                                 flex items-center justify-center space-x-2 transition hover:bg-gray-800 hover:border-white/20 active:scale-95 duration-200 cursor-pointer">
               <Music size={24} />
               <span>Explore Music</span>
             </button>
+            </a>
           </div>
         </div>
 
