@@ -17,7 +17,6 @@ import {
   Clock,
   Maximize,
   Minimize,
-  // Note: Shuffle (Shuffle) and Devices (MonitorSpeaker) are often used here
   Shuffle,
 } from "lucide-react";
 import SleepTimerModal from "./SleepTimerModal";
@@ -51,6 +50,10 @@ const FullScreenPlayer = ({
   changeVolume,
   toggleMute,
   handlePrevClick,
+  // --- NEW PROPS FOR SYNCING ---
+  isSleeperMode,
+  toggleSleeperMode,
+  // --- SYNCED: Removed local isSleeperMode and toggleSleeperMode
 }) => {
   const seekBarRef = useRef(null);
   const [seeking, setSeeking] = useState(false);
@@ -58,7 +61,7 @@ const FullScreenPlayer = ({
   const progressPercent = duration ? (progress / duration) * 100 : 0;
   const isMuted = volume === 0;
 
-  // --- SEEK HANDLERS ---
+  // --- SEEK HANDLERS (UNCHANGED) ---
   const updateSeek = (clientX) => {
     const rect = seekBarRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
@@ -98,23 +101,9 @@ const FullScreenPlayer = ({
       setDominantColor(`rgb(${r}, ${g}, ${b})`);
     };
   }, [currentSong]);
-  const [isSleeperMode, setIsSleeperMode] = useState(false);
 
-  const toggleSleeperMode = () => {
-    const newSleeperState = !isSleeperMode;
-    setIsSleeperMode(newSleeperState);
+  // SYNCED: Removed local state and redefinition of toggleSleeperMode
 
-    if (newSleeperState) {
-      if (volume !== 0.3) {
-        setPrevVolume(volume > 0 ? volume : 1.0);
-      }
-      changeVolume(0.3);
-    } else {
-      changeVolume(prevVolume > 0 ? prevVolume : 1.0);
-    }
-
-    setIsSlowPlayback(false);
-  };
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-[100] transition-all duration-700"
@@ -135,9 +124,9 @@ const FullScreenPlayer = ({
       {/* 🎵 Glass Card */}
       <div
         className="
-      w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between 
-      shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15
-    "
+        w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between 
+        shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15
+      "
       >
         {/* Album Artwork */}
         <img
@@ -188,19 +177,20 @@ const FullScreenPlayer = ({
               
         {/* Controls */}
         <div className="flex items-center justify-between mb-6">
+          {/* SYNCED: Using prop toggleSleeperMode and isSleeperMode */}
           <button
-              onClick={toggleSleeperMode}
-              title="Sleep Mode (30% Volume)"
-              className="p-1 transition-colors cursor-pointer"
-            >
-              <MoonStar
-                className={`w-5 h-5 ${
-                  isSleeperMode
-                    ? "text-[#fa4565]"
-                    : "text-gray-400 hover:text-white"
-                }`}
-              />
-            </button>
+            onClick={toggleSleeperMode}
+            title="Sleep Mode (30% Volume)"
+            className="p-1 transition-colors cursor-pointer"
+          >
+            <MoonStar
+              className={`w-6 h-6 ${
+                isSleeperMode
+                  ? "text-white"
+                  : "opacity-50 hover:opacity-100"
+              }`}
+            />
+          </button>
           <button
             onClick={handlePrevClick}
             className="opacity-70 cursor-pointer hover:opacity-100"
@@ -287,35 +277,50 @@ export default function MusicPlayer() {
   } = usePlayer();
 
   const [seeking, setSeeking] = useState(false);
+  // LIFTED STATE: isSleeperMode and prevVolume
   const [isSleeperMode, setIsSleeperMode] = useState(false);
+  const [prevVolume, setPrevVolume] = useState(volume > 0 ? volume : 1.0);
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
 
   const [isFullScreen, setIsFullScreen] = useState(false); // <--- New State
 
-  const [prevVolume, setPrevVolume] = useState(volume > 0 ? volume : 1.0);
+  
   const [isSlowPlayback, setIsSlowPlayback] = useState(false);
   const [prevRate, setPrevRate] = useState(1.0);
 
   const seekBarRef = useRef(null);
 
   useEffect(() => {
+    // Keep prevVolume updated for when volume is changed manually
     if (volume > 0 && volume !== 0.3) {
       setPrevVolume(volume);
+      // If volume is changed from 0.3 to something else, exit sleeper mode
+      if (isSleeperMode) {
+        setIsSleeperMode(false);
+      }
+    }
+    // If volume is manually set to 0, ensure prevVolume is set before mute/unmute
+    if (volume === 0 && prevVolume === 0) {
+      setPrevVolume(1.0);
     }
   }, [volume]);
+  
+  // Re-sync isSleeperMode if volume is programmatically set to 0.3 outside of this component
+  useEffect(() => {
+    if (volume === 0.3 && !isSleeperMode) {
+      setIsSleeperMode(true);
+    }
+    if (volume !== 0.3 && isSleeperMode) {
+      setIsSleeperMode(false);
+    }
+  }, [volume, isSleeperMode]);
+
 
   if (!currentSong) return null;
 
   // --- UTILITY & HANDLER FUNCTIONS ---
 
-  const formatTime = (sec) => {
-    if (!sec || isNaN(sec)) return "0:00";
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60)
-      .toString()
-      .padStart(2, "0");
-    return `${m}:${s}`;
-  };
+  // Re-definition of formatTime removed as it's defined at the top
 
   const updateSeek = (clientX) => {
     const rect = seekBarRef.current.getBoundingClientRect();
@@ -352,33 +357,38 @@ export default function MusicPlayer() {
     }
   };
 
+  // LIFTED HANDLER: toggleSleeperMode
   const toggleSleeperMode = () => {
     const newSleeperState = !isSleeperMode;
     setIsSleeperMode(newSleeperState);
 
     if (newSleeperState) {
+      // Save current volume if it's not already 0.3, then set to 0.3
       if (volume !== 0.3) {
         setPrevVolume(volume > 0 ? volume : 1.0);
       }
       changeVolume(0.3);
     } else {
+      // Restore volume, defaulting to 1.0 if prevVolume somehow ended up 0
       changeVolume(prevVolume > 0 ? prevVolume : 1.0);
     }
 
-    setIsSlowPlayback(false);
+    setIsSlowPlayback(false); // Often a side effect to ensure proper mode
   };
 
   const toggleMute = () => {
     if (volume > 0) {
+      // If volume is not 0.3 (sleeper volume), save it before muting
       if (volume !== 0.3) {
         setPrevVolume(volume);
       }
       changeVolume(0);
     } else {
+      // Restore volume, defaulting to 1.0 if prevVolume somehow ended up 0
       changeVolume(prevVolume > 0 ? prevVolume : 1.0);
     }
 
-    setIsSleeperMode(false);
+    setIsSleeperMode(false); // Muting explicitly disables sleeper mode
     setIsSlowPlayback(false);
   };
 
@@ -435,6 +445,9 @@ export default function MusicPlayer() {
         changeVolume={changeVolume}
         toggleMute={toggleMute}
         handlePrevClick={handlePrevClick}
+        // --- NEW PROPS PASSED FOR SYNCING ---
+        isSleeperMode={isSleeperMode}
+        toggleSleeperMode={toggleSleeperMode}
       />
     );
   }
@@ -540,9 +553,6 @@ export default function MusicPlayer() {
 
           {/* 3. Special Controls (Right) */}
           <div className="flex items-center gap-2 w-1/4 justify-end relative">
-            {/* --- Fullscreen Button --- */}
-            
-
             {/* ... other special buttons ... */}
             <button
               onClick={() => setIsTimerModalOpen(true)}
@@ -568,6 +578,7 @@ export default function MusicPlayer() {
               />
             </button>
 
+            {/* SYNCED: Using lifted toggleSleeperMode and isSleeperMode */}
             <button
               onClick={toggleSleeperMode}
               title="Sleep Mode (30% Volume)"
