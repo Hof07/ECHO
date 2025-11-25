@@ -140,54 +140,68 @@ function SongsSection() {
 
   /* ====== CARD VIEW ====== */
   const CardView = useMemo(
-    () => () =>
-      (
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-6 max-h-[75vh] overflow-y-auto pb-40">
-          {songs.map((song, i) => {
-            const isActive = song.id === currentSongId;
-            return (
-              <div
-                key={song.id}
-                onClick={() => handlePlay(song, i)}
-                className={`group p-4 rounded-xl cursor-pointer transition-all duration-300
-                ${
-                  isActive
-                    ? "!bg-[#fa4565]/25 ring-2 ring-[#fa4565] text-white"
-                    : "bg-[#121212] hover:bg-[#1b1b1b]"
-                }`}
-              >
-                <div className="relative">
-                  <img
-                    src={song.cover_url}
-                    className="w-full aspect-square object-cover rounded-lg"
-                  />
+  () => () =>
+    (
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-6 max-h-[75vh] overflow-y-auto pb-40">
+        {songs.map((song, i) => {
+          const isActive = song.id === currentSongId;
 
-                  {isActive && (
-                    <div className="absolute inset-0 bg-black/40 flex justify-center items-center rounded-lg">
-                      <div className="flex gap-[3px]">
-                        {[1, 2, 3].map((bar) => (
-                          <div
-                            key={bar}
-                            className="w-[4px] bg-[#fa4565] animate-equalizer rounded-md"
-                            style={{ animationDelay: `${bar * 0.1}s` }}
-                          ></div>
-                        ))}
-                      </div>
+          return (
+            <div
+              key={song.id}
+              onClick={() => handlePlay(song, i)}
+              className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-300
+              ${
+                isActive
+                  ? "!bg-[#fa4565]/25 ring-2 ring-[#fa4565] text-white"
+                  : "bg-[#121212] hover:bg-[#1b1b1b]"
+              }`}
+            >
+              {/* Cover */}
+              <div className="relative rounded-lg overflow-hidden">
+                <img
+                  src={song.cover_url}
+                  className="w-full aspect-square object-cover"
+                />
+
+                {/* Hover Overlay */}
+                {!isActive && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex justify-center items-center">
+                    <button
+                      className="bg-[#fa4565] cursor-pointer w-12 h-12 rounded-full flex items-center justify-center scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 shadow-lg"
+                    >
+                      <Play className="w-5 h-5 fill-white" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Active Equalizer Animation */}
+                {isActive && (
+                  <div className="absolute inset-0 bg-black/40 flex justify-center items-center rotate-180">
+                    <div className="flex gap-[3px]">
+                      {[1, 2, 3].map((bar) => (
+                        <div
+                          key={bar}
+                          className="w-[4px] bg-[#fa4565] animate-equalizer rounded-md"
+                          style={{ animationDelay: `${bar * 0.1}s` }}
+                        ></div>
+                      ))}
                     </div>
-                  )}
-                </div>
-
-                <p className="font-bold mt-4 truncate">{song.title}</p>
-                <p className="text-sm text-gray-400 truncate">
-                  {song.artist_name}
-                </p>
+                  </div>
+                )}
               </div>
-            );
-          })}
-        </div>
-      ),
-    [songs, currentSongId]
-  );
+
+              {/* Title + Artist */}
+              <p className="font-bold mt-4 truncate">{song.title}</p>
+              <p className="text-sm text-gray-400 truncate">{song.artist_name}</p>
+            </div>
+          );
+        })}
+      </div>
+    ),
+  [songs, currentSongId]
+);
+
 
   return (
     <div className="w-[75%] mx-auto pt-8 pb-10 text-white">
@@ -200,7 +214,7 @@ function SongsSection() {
         <div className="flex gap-2">
           <button
             onClick={() => setIsListView(true)}
-            className={`p-2 rounded-full ${
+            className={`p-2 rounded-full cursor-pointer ${
               isListView ? "bg-[#fa4565]" : "text-gray-400"
             }`}
           >
@@ -209,7 +223,7 @@ function SongsSection() {
 
           <button
             onClick={() => setIsListView(false)}
-            className={`p-2 rounded-full ${
+            className={`p-2 rounded-full cursor-pointer ${
               !isListView ? "bg-[#fa4565]" : "text-gray-400"
             }`}
           >
