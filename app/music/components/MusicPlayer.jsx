@@ -17,6 +17,7 @@ import {
   Clock,
   Maximize,
   Minimize,
+  MicVocal,
   // Shuffle, // Not used in the provided code
 } from "lucide-react";
 import SleepTimerModal from "./SleepTimerModal";
@@ -25,7 +26,9 @@ import SleepTimerModal from "./SleepTimerModal";
 const formatTime = (sec) => {
   if (!sec || isNaN(sec)) return "0:00";
   const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60).toString().padStart(2, "0");
+  const s = Math.floor(sec % 60)
+    .toString()
+    .padStart(2, "0");
   return `${m}:${s}`;
 };
 // -----------------------------------------------------------------------------
@@ -110,13 +113,13 @@ const FullScreenPlayer = ({
       {/* 🔘 Exit Fullscreen Button (Top-Right) */}
       <button
         onClick={toggleFullscreen}
-        className="absolute top-4 cursor-pointer right-4 p-3 rounded-full hover:bg-white/20 
-          backdrop-blur-md transition border border-white/30 shadow-lg text-white"
+        className="absolute top-2 sm:top-4 cursor-pointer right-2 sm:right-4 p-2 sm:p-3 rounded-full hover:bg-white/20 
+    backdrop-blur-md transition border border-white/30 shadow-lg text-white
+    scale-90 sm:scale-100"
         title="Exit Fullscreen"
       >
-        <Minimize className="w-6 h-6 opacity-90 hover:opacity-100" />
+        <Minimize className="w-4 h-4 sm:w-6 sm:h-6 opacity-90 hover:opacity-100" />
       </button>
-
       {/* 🎵 Glass Card (Responsive to Max Width) */}
       <div
         className="
@@ -170,7 +173,7 @@ const FullScreenPlayer = ({
             <span>{formatTime(duration - progress)}</span>
           </div>
         </div>
-              
+
         {/* Controls */}
         <div className="flex items-center justify-between mb-6">
           <button
@@ -180,9 +183,7 @@ const FullScreenPlayer = ({
           >
             <MoonStar
               className={`w-6 h-6 ${
-                isSleeperMode
-                  ? "text-white"
-                  : "opacity-50 hover:opacity-100"
+                isSleeperMode ? "text-white" : "opacity-50 hover:opacity-100"
               }`}
             />
           </button>
@@ -275,7 +276,7 @@ export default function MusicPlayer() {
   const [isSleeperMode, setIsSleeperMode] = useState(false);
   const [prevVolume, setPrevVolume] = useState(volume > 0 ? volume : 1.0);
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false); 
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [isSlowPlayback, setIsSlowPlayback] = useState(false);
   const [prevRate, setPrevRate] = useState(1.0); // Placeholder for playback rate logic
 
@@ -295,7 +296,7 @@ export default function MusicPlayer() {
       setPrevVolume(1.0);
     }
   }, [volume, isSleeperMode, prevVolume]);
-  
+
   // Re-sync isSleeperMode if volume is programmatically set to 0.3 outside of this component
   useEffect(() => {
     if (volume === 0.3 && !isSleeperMode) {
@@ -305,7 +306,6 @@ export default function MusicPlayer() {
       setIsSleeperMode(false);
     }
   }, [volume, isSleeperMode]);
-
 
   if (!currentSong) return null;
 
@@ -362,7 +362,7 @@ export default function MusicPlayer() {
       changeVolume(prevVolume > 0 ? prevVolume : 1.0);
     }
 
-    setIsSlowPlayback(false); 
+    setIsSlowPlayback(false);
   };
 
   const toggleMute = () => {
@@ -455,7 +455,6 @@ export default function MusicPlayer() {
 
       {/* 2. PLAYER BAR JSX */}
       <div className="fixed bottom-0 w-full bg-black text-white pt-4 pb-3 px-3 sm:px-5 z-50 shadow-xl border-t border-[#222]">
-        
         {/* --- Seek Bar --- */}
         <div
           ref={seekBarRef}
@@ -489,7 +488,6 @@ export default function MusicPlayer() {
 
         {/* --- Controls and Info (Responsive Layout) --- */}
         <div className="flex items-center justify-between mt-3 flex-wrap sm:flex-nowrap">
-          
           {/* 1. Song Info (Left) */}
           <div className="flex items-center gap-3 w-full sm:w-1/4 mb-3 sm:mb-0 order-1">
             <img
@@ -544,7 +542,11 @@ export default function MusicPlayer() {
 
           {/* 3. Special Controls (Right - Moved to order 2 on mobile, order 3 on desktop) */}
           <div className="flex items-center gap-2 w-full sm:w-1/4  justify-end relative mb-3 sm:mb-0 order-2 sm:order-3 ">
-            
+            <button className="p-1 transition-colors cursor-pointer">
+              <MicVocal
+                className={`w-5 h-5 ${"text-gray-400 hover:text-white"}`}
+              />
+            </button>
             <button
               onClick={() => setIsTimerModalOpen(true)}
               title="Set Sleep Timer"

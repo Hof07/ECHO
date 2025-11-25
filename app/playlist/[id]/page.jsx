@@ -1,129 +1,208 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
-import { Clock, Play } from "lucide-react";
+import { Clock, Play, Hash } from "lucide-react";
+import { usePlayer } from "@/app/music/context/PlayerContext";
 
 export default function PlaylistPage() {
-  const { id } = useParams(); // playlist_id from URL e.g. /playlist/4
-  const numericId = Number(id);
+  const { id } = useParams();
 
   const [playlist, setPlaylist] = useState(null);
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
-  console.log("📌 Playlist ID from URL:", id);
+  const activeSongRef = useRef(null);
+  const { playSong, currentSongId } = usePlayer();
 
+  // 🟢 Fetch playlist + songs
   useEffect(() => {
-    if (!id || isNaN(numericId)) {
-      setErr(`Invalid Playlist ID: Must be numeric (Received: ${id})`);
+    if (!id) {
+      setErr("Invalid Playlist ID");
       setLoading(false);
       return;
     }
 
     const fetchData = async () => {
       try {
-        // Fetch playlist info
-        const { data: playlistData, error: playlistErr } = await supabase
+        // Playlist info
+        const { data: playlistData } = await supabase
           .from("playlists")
           .select("*")
-          .eq("id", numericId)
+          .eq("id", id)
           .single();
-
-        if (playlistErr || !playlistData) {
-          setErr("Playlist not found!");
-          setLoading(false);
-          return;
-        }
 
         setPlaylist(playlistData);
 
-        // Fetch songs via relationship table
+        // Songs inside playlist (artist stored IN songs table)
         const { data: playlistSongs, error: songsErr } = await supabase
           .from("playlist_songs")
-          .select(`
-            songs (
+          .select(
+            `
+            song:songs (
               id,
               title,
-              author,
+              cover_url,
+              audio_url,
               duration,
-              image_url
+              artist_name
             )
-          `)
-          .eq("playlist_id", numericId);
+          `
+          )
+          .eq("playlist_id", id);
 
-        console.log("🎶 Raw playlist_songs:", playlistSongs);
-
-        if (!songsErr && playlistSongs) {
-          const extractedSongs = playlistSongs.map(row => row.songs);
-          setSongs(extractedSongs);
+        if (songsErr) {
+          console.log(songsErr);
+          setErr("Failed loading songs");
+          return;
         }
-      } catch (error) {
-        console.error("Error fetching playlist:", error);
-        setErr("Something went wrong loading playlist!");
+
+        const extracted = playlistSongs.map((row) => ({
+          ...row.song,
+          artist_name: row.song.artist_name || "Unknown Artist",
+        }));
+
+        setSongs(extracted);
+      } catch (e) {
+        console.log(e);
+        setErr("Failed loading playlist");
       }
+
       setLoading(false);
     };
 
     fetchData();
-  }, [id, numericId]);
+  }, [id]);
 
-  if (loading) return <div className="p-10 text-white">Loading playlist…</div>;
-  if (err) return <div className="p-10 text-red-500">{err}</div>;
-  if (!playlist) return <div className="p-10 text-gray-400">Not Found</div>;
+  const handlePlay = (song, i) => {
+    playSong(song, i, songs);
+  };
+
+  const formatDuration = (sec) => {
+    if (!sec) return "--:--";
+    const m = Math.floor(sec / 60);
+    const s = (sec % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  // 🎨 LIST VIEW TABLE UI
+  const ListView = useMemo(
+    () => (
+      <div className="bg-[#121212] rounded-xl shadow-2xl overflow-hidden mt-6">
+
+        {/* Header Row */}
+        <div
+          className="grid grid-cols-[32px_1fr_32px]
+          md:grid-cols-[32px_5fr_3fr_1fr]
+          text-gray-400 text-[10px] md:text-xs uppercase font-light
+          border-b border-[#222] py-2 md:py-3 px-3 md:px-4 sticky top-0 bg-[#121212] z-10"
+        >
+          <Hash className="w-4 h-4" />
+          <div>Title</div>
+          <div className="hidden md:block">Artist</div>
+          <Clock className="w-4 h-4 justify-self-end mr-2" />
+        </div>
+
+        {/* Song Rows */}
+        <div className="max-h-[75vh] overflow-y-scroll pb-40">
+          {songs.map((song, i) => {
+            const isActive = currentSongId === song.id;
+
+            return (
+              <div
+                key={song.id}
+                ref={isActive ? activeSongRef : null}
+                onClick={() => handlePlay(song, i)}
+                className={`grid grid-cols-[32px_1fr_32px]
+                md:grid-cols-[32px_5fr_3fr_1fr]
+                items-center py-2 md:py-3 px-3 md:px-4 group cursor-pointer border-b border-[#1b1b1b]
+                transition-all duration-200 select-none ${
+                  isActive
+                    ? "text-[#fa4565] font-semibold"
+                    : "text-gray-300 hover:text-[#fa4565]"
+                }`}
+              >
+                {/* Play Button / Number */}
+                <div className="relative flex items-center justify-center w-4 h-4 group">
+                  {!isActive ? (
+                    <>
+                      <span className="transition-all duration-200 group-hover:opacity-0 group-hover:scale-0">
+                        {i + 1}
+                      </span>
+                      <Play
+                        className="w-4 h-4 absolute opacity-0 fill-[#fa4565] scale-0 transition-all duration-200
+                        group-hover:opacity-100 group-hover:scale-100"
+                      />
+                    </>
+                  ) : (
+                    <div className="flex gap-[2px] transform rotate-180">
+                      {[1, 2, 3].map((bar) => (
+                        <div
+                          key={bar}
+                          className="w-[3px] bg-[#fa4565] animate-equalizer rounded-full"
+                          style={{ animationDelay: `${bar * 0.1}s` }}
+                        ></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Song Info */}
+                <div className="flex items-center gap-3">
+                  <img
+                    src={song.cover_url}
+                    alt={song.title}
+                    className="w-12 h-12 object-cover rounded-md shadow-lg"
+                  />
+                  <div className="truncate">
+                    <p className="truncate">{song.title}</p>
+                    <p className="text-sm text-gray-400 truncate">
+                      {song.artist_name}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Artist */}
+                <div className="hidden md:block text-sm text-gray-400 truncate">
+                  {song.artist_name}
+                </div>
+
+                {/* Duration */}
+                <div className="text-sm text-gray-400 justify-self-end">
+                  {formatDuration(song.duration)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ),
+    [songs, currentSongId]
+  );
+
+  if (loading) return <div className="p-10 text-white">Loading…</div>;
+  if (err) return <div className="p-10 text-red-600">{err}</div>;
 
   return (
     <main className="flex-1 p-8 overflow-y-auto custom-scroll text-white bg-[#1a1a1a]">
-      
-      {/* 🎧 Playlist Header */}
-      <header className="flex items-end gap-6 p-4 rounded-lg bg-gradient-to-b from-[#333] to-[#1a1a1a] shadow-lg">
-        <img 
-          src={playlist.image_url} 
-          alt={playlist.name} 
-          className="w-48 h-48 rounded-md shadow-2xl object-cover"
+
+      {/* Playlist Header */}
+      <header className="flex items-end gap-6 p-4 rounded-lg bg-gradient-to-b from-[#333] to-[#1a1a1a]">
+        <img
+          src={playlist?.image_url || "/placeholder.png"}
+          className="w-48 h-48 rounded-md object-cover"
         />
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-semibold text-gray-300">Playlist</p>
-          <h1 className="text-6xl font-extrabold text-white">{playlist.name}</h1>
-          <p className="text-sm text-gray-400">
-            Created on: {new Date(playlist.created_at).toLocaleDateString()}
-          </p>
-          <p className="text-sm font-medium">
-            <span className="text-[#fa4565]">{songs.length}</span> songs
-          </p>
+          <p className="text-sm text-gray-300">Playlist</p>
+          <h1 className="text-6xl font-extrabold">{playlist?.title}</h1>
+          <p className="text-sm">{songs.length} songs</p>
         </div>
       </header>
 
-      {/* Play Controls */}
-      <div className="flex items-center gap-6 py-6 border-b border-[#333]">
-        <button className="p-3 rounded-full bg-[#fa4565] text-black hover:scale-105 transition">
-          <Play size={24} fill="black" />
-        </button>
-      </div>
-
-      {/* 🎶 Song List */}
-      <div className="mt-4">
-        {songs.length === 0 ? (
-          <p className="text-gray-500 text-center py-10">No songs in this playlist.</p>
-        ) : (
-          songs.map((song, index) => (
-            <div 
-              key={song.id}
-              className="grid grid-cols-[30px_3fr_2fr_80px] items-center py-3 px-4 rounded-lg hover:bg-white/10 transition group cursor-pointer"
-            >
-              <div className="text-center text-gray-400">{index + 1}</div>
-              <div className="flex items-center gap-3">
-                <img src={song.image_url} className="w-10 h-10 rounded" />
-                <span className="text-white">{songs.title}</span>
-              </div>
-              <div className="text-gray-400">{songs.author}</div>
-              <div className="text-right text-gray-400">{songs.duration}</div>
-            </div>
-          ))
-        )}
-      </div>
+      {/* Songs Table */}
+      {ListView}
     </main>
   );
 }
