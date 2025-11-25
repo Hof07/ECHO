@@ -138,7 +138,7 @@ const FullScreenPlayer = ({
         {/* Song Info */}
         <div className="text-center mb-4">
           <h1 className="text-xl font-semibold truncate">
-            {currentSong.title}
+            " {currentSong.title} "
           </h1>
           <p className="text-sm opacity-80 truncate">
             {currentSong.artists?.name ||
@@ -181,7 +181,7 @@ const FullScreenPlayer = ({
           <button
             onClick={toggleSleeperMode}
             title="Sleep Mode (30% Volume)"
-            className="p-1 transition-colors cursor-pointer"
+            className="p-1 transition-colors cursor-pointer hover:text-white"
           >
             <MoonStar
               className={`w-6 h-6 ${
