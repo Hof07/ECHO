@@ -11,19 +11,105 @@ import {
   Globe,
   ShieldCheck,
   LogOut,
+  Upload,
 } from "lucide-react";
 import { supabase } from "@/app/lib/supabaseClient";
 
 // ---------------- SETTINGS PANEL ----------------
 function SettingsPanel({ open, onClose, user }) {
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState(null);
+
   const displayUser = user || {
     full_name: "Echo User",
     email: "guest@example.com",
-    avatar_url: null,
+    img: null,
+    id: null,
   };
 
   const initial = displayUser.full_name?.[0] || "U";
-  const [isRotating, setIsRotating] = React.useState(false);
+
+  // ----------- NEW UPLOAD USING /api/getImg ONLY -----------
+  const handleUpload = async (e) => {
+    console.log("🔔 handleUpload triggered");
+    const file = e.target.files?.[0];
+    console.log("📁 Selected file:", file);
+
+    if (!file) {
+      console.log("⚠️ No file selected, aborting upload.");
+      return;
+    }
+
+    if (!displayUser.email) {
+      console.log("⚠️ displayUser.email missing:", displayUser);
+      alert("User email missing!");
+      return;
+    }
+
+    try {
+      const tempPreview = URL.createObjectURL(file);
+      setPreview(tempPreview);
+      console.log("🖼 Preview URL created:", tempPreview);
+
+      setUploading(true);
+      console.log("⏳ Uploading started for:", displayUser.email);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("email", displayUser.email);
+
+      console.log("📦 FormData prepared:", {
+        fileName: file.name,
+        fileType: file.type,
+        email: displayUser.email,
+      });
+
+      const res = await fetch("/api/getImg", {
+        method: "POST",
+        body: formData,
+      });
+
+      console.log("📥 /api/getImg responded status:", res.status);
+
+      let data;
+      try {
+        data = await res.json();
+        console.log("📨 /api/getImg JSON:", data);
+      } catch (jsonErr) {
+        console.log("❌ Failed to parse JSON from /api/getImg:", jsonErr);
+        alert("Upload failed: invalid server response");
+        setUploading(false);
+        return;
+      }
+
+      if (!data.url) {
+        console.log("❌ Upload error from API:", data.error || data);
+        alert("Upload error: " + (data.error || "Unknown error"));
+        setUploading(false);
+        return;
+      }
+
+      console.log("✔️ Upload successful. New URL:", data.url);
+
+      // Log reload intention and reload
+      console.log("🔁 Reloading page to refresh user data (window.location.reload).");
+      window.location.reload();
+    } catch (err) {
+      console.log("🔥 Unexpected error during upload:", err);
+      alert("Unexpected error: " + (err?.message || err));
+    } finally {
+      setUploading(false);
+      console.log("✅ handleUpload finished (uploading state false).");
+    }
+  };
+
+  // Log open/close for SettingsPanel
+  useEffect(() => {
+    console.log(`📂 SettingsPanel ${open ? "opened" : "closed"}`, {
+      open,
+      userEmail: displayUser.email,
+    });
+  }, [open, displayUser.email]);
 
   return (
     <>
@@ -42,16 +128,25 @@ function SettingsPanel({ open, onClose, user }) {
         <div className="flex justify-between items-center pb-4 border-b border-[#1c1c1c]">
           <h2 className="text-xl font-bold">Settings</h2>
           <button
-            onClick={onClose}
+            onClick={() => {
+              console.log("✖️ Settings close button clicked");
+              onClose();
+            }}
             className="p-2 hover:bg-[#1c1c1c] rounded-lg text-gray-400 hover:text-white"
           >
             <X size={22} />
           </button>
         </div>
 
+        {/* USER CARD */}
         <div className="flex-1 space-y-6 pt-4 overflow-y-auto">
           <div className="flex items-center gap-3 p-3 bg-[#161616] rounded-xl border border-[#fa4565]/20">
-            {displayUser.img ? (
+            {preview ? (
+              <>
+                <img src={preview} className="w-12 h-12 rounded-full object-cover" />
+                <div className="text-xs text-gray-400 ml-2">Preview shown (not saved)</div>
+              </>
+            ) : displayUser.img ? (
               <img
                 src={displayUser.img}
                 className="w-12 h-12 rounded-full object-cover"
@@ -70,64 +165,54 @@ function SettingsPanel({ open, onClose, user }) {
             </div>
           </div>
 
+          {/* Upload Image */}
+          <label className="cursor-pointer flex items-center gap-2 bg-[#1c1c1c] hover:bg-[#222] p-3 rounded-lg border border-[#333]">
+            <Upload size={18} />
+            {uploading ? "Uploading..." : "Upload Profile Image"}
+
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUpload}
+            />
+          </label>
+
+          {/* OPTIONS */}
           <ul className="space-y-2 border-t border-[#2a2a2a] pt-4">
-            {[
-              { icon: User2, label: "My Account" },
+            {[{ icon: User2, label: "My Account" },
               { icon: Palette, label: "Theme" },
               { icon: Globe, label: "Language" },
-              { icon: ShieldCheck, label: "Security" },
-            ].map(({ icon: Icon, label }) => (
-              <div
-                key={label}
-                className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"
-              >
-                <Icon size={20} /> {label}
-              </div>
-            ))}
+              { icon: ShieldCheck, label: "Security" }].map(
+              ({ icon: Icon, label }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"
+                >
+                  <Icon size={20} /> {label}
+                </div>
+              )
+            )}
           </ul>
         </div>
 
+        {/* LOGOUT */}
         <button
           onClick={async () => {
-            setIsRotating(true);
-
+            console.log("🔒 Logout button clicked");
             try {
               const res = await fetch("/api/logout", { method: "POST" });
-
-              let data;
-              try {
-                data = await res.json();
-              } catch {
-                data = { success: true };
-              }
-
-              console.log("Logout response:", data);
-
-              setTimeout(() => {
-                onClose();
-                window.location.href = "/login";
-              }, 600);
-
+              const json = await res.json().catch(() => ({}));
+              console.log("🔐 Logout API response:", res.status, json);
+              window.location.href = "/login";
             } catch (err) {
-              console.error("Logout failed:", err);
-              setIsRotating(false);
+              console.error("❌ Logout failed:", err);
             }
           }}
           className="w-full py-3 bg-[#fa4565] hover:bg-[#ff5c79] rounded-lg font-semibold mt-6 flex items-center justify-center gap-2"
         >
-          {/* If loading → show spinner */}
-          {isRotating ? (
-            <span className="loader"></span>
-          ) : (
-            <div className="flex items-center gap-2">
-              <LogOut size={18} />
-              Logout
-            </div>
-          )}
+          <LogOut size={18} /> Logout
         </button>
-
-
-
       </aside>
     </>
   );
@@ -141,60 +226,77 @@ export default function Header() {
   const [showPopup, setShowPopup] = useState(false);
   const [user, setUser] = useState(null);
 
-  // ⭐ Fetch Authenticated User Using API
+  // Fetch user
   useEffect(() => {
     async function loadUser() {
-      console.log("🔄 Fetching user from /api/getToken ...");
-
-      const res = await fetch("/api/getToken");
-      const data = await res.json();
-
-      if (data.user) {
-        console.log("✅ USER FETCHED:", data.user);
-        setUser(data.user);
-      } else {
-        console.log("⚠ No user found");
+      console.log("🔄 loadUser() starting - calling /api/getToken");
+      try {
+        const res = await fetch("/api/getToken");
+        console.log("📥 /api/getToken status:", res.status);
+        const data = await res.json().catch(() => null);
+        console.log("👤 /api/getToken response:", data);
+        if (data?.user) {
+          setUser(data.user);
+          console.log("✅ User set:", data.user);
+        } else {
+          console.log("⚠️ No user returned from /api/getToken");
+        }
+      } catch (err) {
+        console.error("❌ Error loading user:", err);
       }
     }
 
     loadUser();
   }, []);
 
-  // ⭐ LIVE SEARCH FROM SUPABASE
+  // SEARCH SONGS
   useEffect(() => {
     const fetchData = async () => {
+      console.log("🔍 Searching songs for query:", searchQuery);
       if (!searchQuery.trim()) {
         setResults([]);
         setShowPopup(false);
+        console.log("🔎 Empty searchQuery - cleared results");
         return;
       }
 
-      console.log("🎵 Searching:", searchQuery);
+      try {
+        const { data, error } = await supabase
+          .from("songs")
+          .select("*")
+          .ilike("title", `%${searchQuery}%`);
 
-      const { data, error } = await supabase
-        .from("songs")
-        .select("*")
-        .ilike("title", `%${searchQuery}%`);
+        console.log("🎵 Supabase search returned:", { dataLength: data?.length, error });
+        if (error) {
+          console.log("⚠️ Supabase search error:", error);
+          setResults([]);
+          setShowPopup(false);
+          return;
+        }
 
-      if (error) {
-        console.log("❌ Search Error:", error);
-        return;
+        setResults(data || []);
+        setShowPopup(true);
+      } catch (err) {
+        console.error("❌ Unexpected error during song search:", err);
+        setResults([]);
+        setShowPopup(false);
       }
-
-      console.log("✅ Search Results:", data);
-      setResults(data);
-      setShowPopup(true);
     };
 
-    fetchData();
+    // debounce-like behavior (simple)
+    const t = setTimeout(fetchData, 250);
+    return () => clearTimeout(t);
   }, [searchQuery]);
+
+  // log when settings panel toggles
+  useEffect(() => {
+    console.log("⚙️ Settings panel toggled:", showSettings);
+  }, [showSettings]);
 
   return (
     <>
       <header className="w-full bg-black text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between px-8 py-4">
-
-          {/* Logo */}
           <Link href="/" className="flex items-center">
             <AudioWaveform
               size={42}
@@ -202,17 +304,21 @@ export default function Header() {
             />
           </Link>
 
-          {/* Search Bar */}
+          {/* SEARCH */}
           <div className="relative flex-1 max-w-[500px] hidden md:block">
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                console.log("✏️ Search input changed:", e.target.value);
+                setSearchQuery(e.target.value);
+              }}
               placeholder="Search songs, artists..."
               className="w-full bg-[#161616] px-5 py-2.5 rounded-full text-sm text-gray-200 placeholder-gray-500 
               focus:outline-none focus:ring-2 focus:ring-[#fa4565]"
               onBlur={() => setTimeout(() => setShowPopup(false), 200)}
             />
+
             <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400" />
 
             {showPopup && (
@@ -223,7 +329,7 @@ export default function Header() {
                       key={song.id}
                       className="p-2 px-4 hover:bg-[#333] rounded-lg cursor-pointer flex justify-between"
                       onClick={() => {
-                        console.log("🎧 Selected:", song.title);
+                        console.log("🎯 Song selected from search:", song);
                         setSearchQuery(song.title);
                         setShowPopup(false);
                       }}
@@ -239,8 +345,8 @@ export default function Header() {
             )}
           </div>
 
-          {/* Premium + Profile */}
-          <div className="flex items-center gap-3">
+          {/* PREMIUM + PROFILE */}
+          <div className="flex items-center justify-between gap-3">
             <Link
               href="/premium"
               className="bg-[#fa4565] px-5 py-2 rounded-full font-semibold hover:bg-[#ff6078]"
@@ -248,11 +354,18 @@ export default function Header() {
               Premium
             </Link>
 
-            <button onClick={() => setShowSettings(true)}>
+            <button
+              onClick={() => {
+                console.log("👤 Profile button clicked - opening Settings");
+                setShowSettings(true);
+                className="relative left-5"
+              }}
+            >
               {user?.img ? (
                 <img
                   src={user.img}
                   className="w-10 h-10 rounded-full border object-cover hover:scale-110 transition"
+                  alt="profile"
                 />
               ) : (
                 <div className="w-10 h-10 bg-[#333] rounded-full flex items-center justify-center text-lg font-bold">
@@ -265,7 +378,14 @@ export default function Header() {
       </header>
 
       {/* Settings Panel */}
-      <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} user={user} />
+      <SettingsPanel
+        open={showSettings}
+        onClose={() => {
+          console.log("🔒 Closing settings from parent");
+          setShowSettings(false);
+        }}
+        user={user}
+      />
     </>
   );
 }
