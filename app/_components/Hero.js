@@ -155,7 +155,7 @@ const AiTrackAnalyzer = ({ apiKey }) => {
       contents: [{ parts: [{ text: userQuery }] }],
       systemInstruction: { parts: [{ text: systemPrompt }] },
       // Use Google Search for up-to-date and grounded information
-      tools: [{ "google_search": {} }],
+      tools: [{ "google_search": {} }], 
     };
 
     try {
@@ -167,7 +167,7 @@ const AiTrackAnalyzer = ({ apiKey }) => {
 
       const result = await response.json();
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-
+      
       // Basic Markdown to HTML conversion for rendering:
       let html = text.replace(/## (.*)/g, '<h3>$1</h3>'); // Convert H2 (##) to H3
       html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); // Convert bold
@@ -300,35 +300,32 @@ export default function App() {
             Experience millions of tracks, curated playlists, and crystal-clear audio quality. No limits. Just music.
           </p>
 
-          <div className="flex flex-col sm:flex-row 
-            justify-start sm:justify-center 
-            gap-4 sm:gap-6 
-            transition-all duration-1000 delay-400 opacity-0 animate-fade-in-up-delay-400">
-
-            <a href='/music'>
-              <button
-                className="text-black font-bold text-lg px-8 sm:px-10 py-3 sm:py-4 rounded-full
+         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 transition-all duration-1000 delay-400 opacity-0 animate-fade-in-up-delay-400">
+  <a href="/music">
+    <button
+      className="text-black font-bold text-lg px-8 sm:px-10 py-3 sm:py-4 rounded-full
                  flex items-center justify-center space-x-2 transition transform hover:scale-105 shadow-xl font-bold
                  active:scale-95 duration-200 cursor-pointer"
-                style={{
-                  backgroundColor: PRIMARY_COLOR,
-                  boxShadow: `0 10px 15px -3px ${PRIMARY_COLOR}50, 0 4px 6px -4px ${PRIMARY_COLOR}50`
-                }}
-              >
-                <Play size={24} fill='currentColor' />
-                <span>Start Free Trial</span>
-              </button>
-            </a>
+      style={{
+        backgroundColor: PRIMARY_COLOR,
+        boxShadow: `0 10px 15px -3px ${PRIMARY_COLOR}50, 0 4px 6px -4px ${PRIMARY_COLOR}50`,
+      }}
+    >
+      <Play size={24} fill="currentColor" />
+      <span>Start Free Trial</span>
+    </button>
+  </a>
 
-            <a href='/music'>
-              <button className="border border-gray-600 text-white font-semibold text-lg px-8 sm:px-10 py-3 sm:py-4 rounded-full
-                       flex items-center justify-center space-x-2 transition hover:bg-gray-800 hover:border-white/20 active:scale-95 duration-200 cursor-pointer">
-                <Music size={24} />
-                <span>Explore Music</span>
-              </button>
-            </a>
-
-          </div>
+  <a href="/music">
+    <button
+      className="border border-gray-600 text-white font-semibold text-lg px-8 sm:px-10 py-3 sm:py-4 rounded-full
+                 flex items-center justify-center space-x-2 transition hover:bg-gray-800 hover:border-white/20 active:scale-95 duration-200 cursor-pointer"
+    >
+      <Music size={24} />
+      <span>Explore Music</span>
+    </button>
+  </a>
+</div>
 
         </div>
 
