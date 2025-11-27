@@ -2,7 +2,6 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { PlayerProvider } from "./music/context/PlayerContext";
 import MusicPlayer from "./music/components/MusicPlayer";
-// import { AuthProvider } from "./context/AuthProvider";
 import { customFont } from "./fonts";
 
 const outfit = Outfit({
@@ -17,21 +16,25 @@ export const metadata = {
     icon: "/hel.svg",
   },
   other: {
-    "google-site-verification":
-      "L78ASEvDeoDZSAxYrKJ2W_KUtjvbZ8Duc06ncGxxBeQ",
+    "google-site-verification": "googleaadf1a5d11837f5a.html",
   },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${outfit.variable} ${customFont.variable}`}>
+      <head>
+        <meta
+          name="google-site-verification"
+          content="googleaadf1a5d11837f5a.html"
+        />
+      </head>
+
       <body className="font-sans antialiased bg-white text-gray-900">
-        {/* <AuthProvider> */}
-          <PlayerProvider>
-            {children}
-            <MusicPlayer />
-          </PlayerProvider>
-        {/* </AuthProvider> */}
+        <PlayerProvider>
+          {children}
+          <MusicPlayer />
+        </PlayerProvider>
       </body>
     </html>
   );
