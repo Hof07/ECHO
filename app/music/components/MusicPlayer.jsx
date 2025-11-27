@@ -55,7 +55,6 @@ const FullScreenPlayer = ({
 }) => {
   const seekBarRef = useRef(null);
   const [seeking, setSeeking] = useState(false);
-
   const progressPercent = duration ? (progress / duration) * 100 : 0;
   const isMuted = volume === 0;
 
@@ -267,6 +266,8 @@ export default function MusicPlayer() {
     toggleLoop,
     volume,
     changeVolume,
+    playbackRate,
+    setPlaybackRate,
     // sleepTimerTimeRemaining, // Context props assumed to be there if needed
     // setSleepTimer,
     // cancelSleepTimer,
@@ -278,7 +279,9 @@ export default function MusicPlayer() {
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isSlowPlayback, setIsSlowPlayback] = useState(false);
-  const [prevRate, setPrevRate] = useState(1.0); // Placeholder for playback rate logic
+  const [prevRate, setPrevRate] = useState(1.0);
+  const [showSpeedPopup, setShowSpeedPopup] = useState(false);
+
 
   const seekBarRef = useRef(null);
 
@@ -558,18 +561,96 @@ export default function MusicPlayer() {
             </button>
 
             <button
-              onClick={toggleSlowPlayback}
-              title="Toggle Slow Playback Rate"
+              onClick={() => setShowSpeedPopup(true)}
+              title="Playback Speed"
               className="p-1 transition-colors cursor-pointer"
             >
               <Gauge
                 className={`w-5 h-5 ${
-                  isSlowPlayback
+                  showSpeedPopup
                     ? "text-[#fa4565]"
                     : "text-gray-400 hover:text-white"
                 }`}
               />
             </button>
+
+            {showSpeedPopup && (
+  <div 
+    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div className="
+        bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl 
+        p-7 w-[400px] shadow-2xl relative
+      ">
+      
+      {/* CLOSE BUTTON - Repositioned inside for a cleaner look */}
+      <button
+        onClick={() => setShowSpeedPopup(false)}
+        className="absolute top-4 right-4 text-white/70 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-[#fa4565] rounded-full"
+        aria-label="Close Playback Speed Popup"
+      >
+        <span className="text-xl leading-none">×</span>
+      </button>
+
+      {/* TITLE */}
+      <h3 className="text-white text-center text-xl font-bold mb-6">
+        Playback Speed
+      </h3>
+
+      {/* CURRENT SPEED DISPLAY - Prominent */}
+      <div className="text-center mb-5">
+        <span className="text-4xl font-extrabold text-[#fa4565]">
+          {playbackRate.toFixed(2)}x
+        </span>
+      </div>
+
+      {/* SLIDER */}
+      <input
+        type="range"
+        min="0.25"
+        max="2"
+        step="0.05"
+        value={playbackRate}
+        onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
+        className="w-full accent-[#fa4565] h-2 cursor-pointer mb-2"
+        aria-label="Adjust Playback Rate"
+      />
+      
+      {/* Normal Speed Label */}
+      <div className="flex justify-center mb-8">
+        <span className="text-xs text-white/60">
+          (1.00x is Normal)
+        </span>
+      </div>
+
+      {/* QUICK SPEED BUTTONS - Using space-x-3 for better alignment */}
+      <div className="flex justify-center space-x-3">
+        {[0.25, 0.75, 1, 1.5, 1.75, 2].map((rate) => (
+          <button
+            key={rate}
+            onClick={() => setPlaybackRate(rate)}
+            className={`
+              w-14 px-1 py-2 text-sm rounded-lg font-semibold transition
+              border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#fa4565]
+              ${playbackRate.toFixed(2) === rate.toFixed(2) // Ensure comparison works for floats
+                ? "bg-[#fa4565] text-white border-transparent" 
+                : "text-white border-white/20 hover:bg-white/10"
+              }
+              ${rate === 1 && playbackRate.toFixed(2) !== '1.00' ? "border-[#fa4565] text-[#fa4565] hover:text-white" : ""}
+            `}
+          >
+            {rate}x
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
+
+
 
             {/* SYNCED: Sleeper Mode Button */}
             <button

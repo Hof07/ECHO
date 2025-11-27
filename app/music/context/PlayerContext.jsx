@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useRef, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
 
 const PlayerContext = createContext();
 export const usePlayer = () => useContext(PlayerContext);
@@ -17,6 +23,7 @@ export const PlayerProvider = ({ children }) => {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(1.0);
 
   const loadAndPlay = (song, index = 0) => {
     if (!song) return;
@@ -51,6 +58,11 @@ export const PlayerProvider = ({ children }) => {
     const nextIndex = (currentIndex + 1) % playlist.length;
     loadAndPlay(playlist[nextIndex], nextIndex);
   };
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate]);
 
   const playPrev = () => {
     if (!playlist.length) return;
@@ -167,6 +179,8 @@ export const PlayerProvider = ({ children }) => {
         isLoop,
         volume,
         currentSongId,
+        playbackRate,
+        setPlaybackRate,
         playSong,
         togglePlay,
         playNext,
