@@ -2,7 +2,8 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { PlayerProvider } from "./music/context/PlayerContext";
 import MusicPlayer from "./music/components/MusicPlayer";
-
+// import { AuthProvider } from "./context/AuthProvider";
+import { customFont } from "./fonts";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -23,16 +24,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body
-        className={`${outfit.variable} font-sans antialiased bg-white text-gray-900`}
-      >
-        
+    <html lang="en" className={`${outfit.variable} ${customFont.variable}`}>
+      <body className="font-sans antialiased bg-white text-gray-900">
+        {/* <AuthProvider> */}
           <PlayerProvider>
             {children}
             <MusicPlayer />
           </PlayerProvider>
-        
+        {/* </AuthProvider> */}
       </body>
     </html>
   );

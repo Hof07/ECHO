@@ -150,7 +150,7 @@ const FullScreenPlayer = ({
         <div className="mb-6">
           <div
             ref={seekBarRef}
-            className="relative w-full h-3 cursor-pointer bg-white/20 rounded-full select-none"
+            className="relative w-full h-2 cursor-pointer bg-white/20 rounded-full select-none"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -159,7 +159,7 @@ const FullScreenPlayer = ({
             onTouchEnd={handleTouchEnd}
           >
             <div
-              className="absolute top-0 left-0 h-3 bg-white rounded-full transition-all"
+              className="absolute top-0 left-0 h-2 bg-white rounded-full transition-all"
               style={{ width: `${progressPercent}%` }}
             />
             <div
