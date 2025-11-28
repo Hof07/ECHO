@@ -23,6 +23,7 @@
     "bcryptjs": "^3.0.3",
     "canvas": "^3.2.0",
     "color-thief-browser": "^2.0.2",
+    "color-thief-react": "^2.1.0",
     "framer-motion": "^12.23.24",
     "jose": "^6.1.2",
     "jsonwebtoken": "^9.0.2",
