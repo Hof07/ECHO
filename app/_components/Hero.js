@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import {
   AudioWaveform, User, Menu, X, Play, ArrowRight, Music, TrendingUp, Mic, ListMusic, Headset, Globe, Clock, ChevronDown, Sparkles, Search,
 } from 'lucide-react';
+import './styles.css'
+import '../globals.css'
 
 // --- Configuration Constants ---
 const PRIMARY_COLOR = '#fa4565';
@@ -12,7 +14,7 @@ const CARD_BG = '#141414';
 
 // Note: API key is left empty as it is provided by the runtime environment.
 const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
-const GEMINI_API_URL = (model = GEMINI_MODEL, apiKey = "") =>
+const GEMINI_API_URL = (model = GEMINI_MODEL, apiKey = "AIzaSyA_Mp2CY3JhPiKnpMTQNtxwNU9T2V6OfXM") =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
 // Mock data
@@ -267,7 +269,7 @@ export default function App() {
 
   // Main Page Content
   return (
-    <div style={{ backgroundColor: BACKGROUND_COLOR }} className="min-h-screen font-sans text-white antialiased">
+    <div id='main' style={{ backgroundColor: BACKGROUND_COLOR }} className="min-h-screen font-sans text-white antialiased">
       <div className='absolute hidden'>
         {/* Placeholder for header file user mentioned not to include */}
       </div>
@@ -287,7 +289,7 @@ export default function App() {
         <div className={`z-10 max-w-[${MAX_WIDTH}] mx-auto px-6 md:px-8 text-center pt-24 relative bottom-[74px]`}>
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-extrabold tracking-tight mb-6 leading-tight sm:leading-snug
                             animate-fade-in-up transition-all duration-1000">
-            Listen to the Future of <span style={{ color: PRIMARY_COLOR }} className="relative">
+            Listen to the Future of <br /> <span style={{ color: PRIMARY_COLOR }} className="relative">
               Sound
               <span
                 className="absolute -bottom-1 left-0 w-full h-1 rounded-full animate-pulse opacity-75"

@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { AudioWaveform, User, Menu, X } from "lucide-react";
+import '../globals.css'
+import './styles.css'
 
 export default function Header() {
     const navItems = ["Home", "Genres", "Artists", "Premium"];
@@ -13,7 +15,7 @@ export default function Header() {
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
     return (
-        <header className="w-full bg-black text-white sticky top-0 z-50">
+        <header id="head" className="w-full bg-black text-white sticky top-0 z-50">
             <div className="max-w-[1400px] mx-auto flex items-center justify-between py-4 px-4 md:px-8">
 
                 {/* Logo and Mobile Menu Button */}
