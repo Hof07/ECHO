@@ -21,7 +21,7 @@ export default function Sidebar() {
       
       if (!response.ok) {
         if (response.status === 401) {
-            console.log("User not logged in or JWT is invalid (Status 401).");
+            // console.log("User not logged in or JWT is invalid (Status 401).");
         } 
         return null;
       }

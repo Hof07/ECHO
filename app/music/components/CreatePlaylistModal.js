@@ -82,7 +82,7 @@ export default function CreatePlaylistModal({ close, refresh, createdBy }) {
       console.error("Error creating playlist:", error);
       alert(`Error creating playlist: ${error.message}`);
     } else {
-      console.log("Playlist created:", data);
+      // console.log("Playlist created:", data);
       refresh();
       close();
     }

@@ -138,13 +138,13 @@ export default function LoginPage() {
   const handleGoogle = useCallback(() => {
     setResult("Initiating Google sign-in...");
     // TODO: Implement actual Google OAuth logic here
-    console.log("Starting Google OAuth flow...");
+    // console.log("Starting Google OAuth flow...");
   }, []);
 
   const handleApple = useCallback(() => {
     setResult("Initiating Apple sign-in...");
     // TODO: Implement actual Apple OAuth logic here
-    console.log("Starting Apple OAuth flow...");
+    // console.log("Starting Apple OAuth flow...");
   }, []);
 
   // --- Render Logic ---

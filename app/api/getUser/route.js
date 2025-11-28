@@ -21,15 +21,15 @@ const SECRET = rawSecret ? new TextEncoder().encode(rawSecret) : null;
 
 export async function GET() {
   try {
-    console.log("[getUser] GET called");
+    // console.log("[getUser] GET called");
 
     // 1) read cookie
     const cookieStore = cookies();
     const token = cookieStore.get("music_jwt")?.value;
-    console.log("[getUser] cookie token present?", !!token);
+    // console.log("[getUser] cookie token present?", !!token);
 
     if (!token) {
-      console.warn("[getUser] No music_jwt cookie found");
+      // console.warn("[getUser] No music_jwt cookie found");
       return NextResponse.json(
         { success: false, step: "no_token", message: "No auth token found" },
         { status: 401 }
@@ -47,11 +47,11 @@ export async function GET() {
     // 2) verify JWT
     let payload;
     try {
-      console.log("[getUser] Verifying JWT...");
+      // console.log("[getUser] Verifying JWT...");
       const { payload: decoded } = await jwtVerify(token, SECRET);
       payload = decoded;
       // don't log full payload in production (it may contain sensitive info)
-      console.log("[getUser] JWT verified. payload keys:", Object.keys(payload || {}));
+      // console.log("[getUser] JWT verified. payload keys:", Object.keys(payload || {}));
     } catch (err) {
       console.error("[getUser] jwtVerify failed:", err?.message || err);
       return NextResponse.json(
@@ -63,7 +63,7 @@ export async function GET() {
     // 3) determine identifier (id or email)
     const userId = payload?.id ?? null;
     const email = payload?.email ?? null;
-    console.log(`[getUser] extracted id: ${userId ? String(userId) : "none"}, email: ${email ?? "none"}`);
+    // console.log(`[getUser] extracted id: ${userId ? String(userId) : "none"}, email: ${email ?? "none"}`);
 
     if (!userId && !email) {
       console.warn("[getUser] token missing id and email");
@@ -91,7 +91,7 @@ export async function GET() {
       if (userId) query = query.eq("id", userId);
       else query = query.eq("email", email);
 
-      console.log("[getUser] Running query on profiles...");
+      // console.log("[getUser] Running query on profiles...");
       const { data: profile, error: profileError } = await query.single();
 
       if (profileError) {
@@ -117,7 +117,7 @@ export async function GET() {
         delete safeProfile.password;
       }
 
-      console.log("[getUser] Profile found, returning safe profile for user:", safeProfile.id);
+      // console.log("[getUser] Profile found, returning safe profile for user:", safeProfile.id);
 
       return NextResponse.json(
         { success: true, user: safeProfile },

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 export default function ClientCheck({ email }) {
   useEffect(() => {
-    console.log("User Email From JWT:", email);
+    // console.log("User Email From JWT:", email);
   }, [email]);
 
   return (

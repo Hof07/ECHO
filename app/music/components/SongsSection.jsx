@@ -71,7 +71,7 @@ border-b border-[#222] py-2 md:py-3 px-3 md:px-4 sticky top-0 bg-[#121212] z-10"
           <div className="max-h-[75vh] overflow-y-scroll pb-40">
             {songs.map((song, i) => {
               const isActive = song.id === currentSongId;
-              console.log(currentSongId);
+              // console.log(currentSongId);
               return (
                 <div
                   key={song.id}

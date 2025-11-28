@@ -158,7 +158,7 @@ export default function App() {
             const priceText = selectedPlan.price === 0 ? 'Free' : `₹${selectedPlan.price}`;
             const actionText = selectedPlan.price === 0 ? 'Access granted!' : 'Processing payment...';
             
-            console.log(`Action initiated for the ${selectedPlan.name} plan at ${priceText}.`);
+            // console.log(`Action initiated for the ${selectedPlan.name} plan at ${priceText}.`);
             
             // Simple visual feedback simulation
             const button = document.getElementById('action-button');

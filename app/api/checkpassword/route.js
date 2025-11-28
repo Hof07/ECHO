@@ -6,8 +6,7 @@ export async function POST(req) {
   try {
     const { email, password } = await req.json();
 
-    console.log("📩 INPUT:", email);
-    console.log("🔑 PASSWORD:", password);
+    
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -24,31 +23,26 @@ export async function POST(req) {
       .single();
 
     if (error || !user) {
-      console.log("❌ USER NOT FOUND");
       return NextResponse.json({
         success: false,
         message: "Account not found",
       });
     }
 
-    console.log("🗄️ USER FOUND:", user);
-    console.log("🔐 HASH IN DB:", user.password);
+    
 
     // -------------------------------
     // COMPARE PASSWORD
     // -------------------------------
     const match = await bcrypt.compare(password, user.password);
-    console.log("🔍 MATCH RESULT:", match);
+    
 
     if (!match) {
-      console.log("❌ WRONG PASSWORD");
       return NextResponse.json({
         success: false,
         message: "Wrong password",
       });
     }
-
-    console.log("✅ LOGIN SUCCESS");
 
     return NextResponse.json({
       success: true,
@@ -58,7 +52,6 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.log("🔥 ERROR:", err.message);
     return NextResponse.json(
       { success: false, message: err.message },
       { status: 500 }

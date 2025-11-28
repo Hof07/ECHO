@@ -14,7 +14,7 @@ const CARD_BG = '#141414';
 
 // Note: API key is left empty as it is provided by the runtime environment.
 const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
-const GEMINI_API_URL = (model = GEMINI_MODEL, apiKey = "AIzaSyA_Mp2CY3JhPiKnpMTQNtxwNU9T2V6OfXM") =>
+const GEMINI_API_URL = (model = GEMINI_MODEL, apiKey = process.env.GEMINI_API_KEY) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
 // Mock data

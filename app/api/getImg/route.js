@@ -12,8 +12,8 @@ export async function POST(req) {
     const file = formData.get("file");
     const email = formData.get("email");
 
-    console.log("📥 FILE:", file?.name);
-    console.log("📧 EMAIL RECEIVED:", email);
+    // console.log("📥 FILE:", file?.name);
+    // console.log("📧 EMAIL RECEIVED:", email);
 
     if (!file || !email) {
       return NextResponse.json({ error: "Missing file or email" });
@@ -25,11 +25,11 @@ export async function POST(req) {
       .select("*")
       .eq("email", email);
 
-    console.log("🔍 CHECK USER RESULT:", checkUser);
-    console.log("🔍 CHECK USER ERROR:", checkError);
+    // console.log("🔍 CHECK USER RESULT:", checkUser);
+    // console.log("🔍 CHECK USER ERROR:", checkError);
 
     if (checkUser.length === 0) {
-      console.log("❌ NO USER FOUND WITH EMAIL:", email);
+      // console.log("❌ NO USER FOUND WITH EMAIL:", email);
       return NextResponse.json({
         error: "Email not found in profiles",
       });
@@ -43,7 +43,7 @@ export async function POST(req) {
       .from("img")
       .upload(path, file, { upsert: true });
 
-    console.log("⬆️ UPLOAD ERROR:", uploadError);
+    // console.log("⬆️ UPLOAD ERROR:", uploadError);
 
     if (uploadError) {
       return NextResponse.json({ error: "Upload failed", details: uploadError });
@@ -53,7 +53,7 @@ export async function POST(req) {
     const url =
       supabase.storage.from("img").getPublicUrl(path).data.publicUrl;
 
-    console.log("🌐 PUBLIC URL:", url);
+    // console.log("🌐 PUBLIC URL:", url);
 
     // Update profiles table
     const { data: updateData, error: updateError } = await supabase
@@ -62,8 +62,8 @@ export async function POST(req) {
       .eq("email", email)
       .select(); // 🔥 shows how many rows updated
 
-    console.log("📝 UPDATE DATA:", updateData);
-    console.log("📝 UPDATE ERROR:", updateError);
+    // console.log("📝 UPDATE DATA:", updateData);
+    // console.log("📝 UPDATE ERROR:", updateError);
 
     if (updateError) {
       return NextResponse.json({ error: "Update failed", details: updateError });
@@ -71,7 +71,7 @@ export async function POST(req) {
 
     return NextResponse.json({ url });
   } catch (err) {
-    console.log("💥 SERVER ERROR:", err);
+    // console.log("💥 SERVER ERROR:", err);
     return NextResponse.json({ error: "Server crashed", details: err });
   }
 }

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 
 async function main() {
   try {
-    console.log("🔵 Generating image...");
+    // console.log("🔵 Generating image...");
 
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY, // <-- Put your key in .env
@@ -26,13 +26,13 @@ async function main() {
       const filename = `generated-${idx}.png`;
       fs.writeFileSync(filename, buffer);
 
-      console.log(`🟢 Image saved: ${filename}`);
+      // console.log(`🟢 Image saved: ${filename}`);
       idx++;
     }
 
     console.log("✅ Finished!");
   } catch (err) {
-    console.error("❌ Error generating image:", err);
+    // console.error("❌ Error generating image:", err);
   }
 }
 
