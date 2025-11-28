@@ -24,7 +24,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-custom);
+  font-family: var(--font-custom),"Outfit";
 }
 
 /* Hide scrollbar for Chrome, Safari and Edge */
