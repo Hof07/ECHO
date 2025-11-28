@@ -9,9 +9,12 @@ import { usePlayer } from "@/app/music/context/PlayerContext";
 // 1. Import color-thief-react
 import { useColor } from "color-thief-react";
 
+// --- CONSTANTS ---
 const COVER_BUCKET = "covers";
-const HEADER_HEIGHT_PX = 320; // Max height of the cover area
-const FIXED_TOP_BAR_HEIGHT = 80; // Height of the small collapsed header (h-20 * p-4)
+const HEADER_HEIGHT_PX = 320; // Max height of the cover area (height of the large header)
+const FIXED_TOP_BAR_HEIGHT = 80; // Height of the small collapsed header (h-20)
+const ACTION_ROW_HEIGHT = 96; // Height of the p-8 action row
+// -----------------
 
 export default function PlaylistPage() {
   const { id } = useParams();
@@ -24,7 +27,7 @@ export default function PlaylistPage() {
   const [generatingCover, setGeneratingCover] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [scrollOffset, setScrollOffset] = useState(0); // Scroll state
+  const [scrollOffset, setScrollOffset] = useState(0); // Tracks scroll position
 
   const activeSongRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -34,28 +37,51 @@ export default function PlaylistPage() {
   // 2. Get dominant color from the playlist image
   const coverUrl = playlist?.image_url || "/placeholder.png";
   const { data: dominantColor, loading: loadingColor } = useColor(coverUrl, "hex", { crossOrigin: "anonymous" });
+  
   const bgColor = dominantColor || '#2c2c2c'; 
+  const listAreaBg = '#1a1a1a'; // A darker color for the list area
 
-  // 3. Scroll handler for parallax effect
+  // 3. Scroll handler setup
   const handleScroll = useCallback(() => {
     if (mainScrollRef.current) {
       setScrollOffset(mainScrollRef.current.scrollTop);
     }
   }, []);
 
+  useEffect(() => {
+    const element = mainScrollRef.current;
+    if (element) {
+      element.addEventListener('scroll', handleScroll);
+      return () => element.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
+
   
   // 🟢 CALCULATE VISIBILITY VARIABLES 
+  // Parallax: Moves the header content up at a slower rate than the scroll
   const parallaxTranslate = useMemo(() => Math.min(0, -scrollOffset * 0.8), [scrollOffset]);
-  // showFixedHeader determines when the main header is mostly off-screen
-  const showFixedHeader = useMemo(() => scrollOffset > HEADER_HEIGHT_PX * 0.8, [scrollOffset]);
-  // textOpacity controls the fade-in of the small fixed header title
-  const textOpacity = useMemo(() => 
-    Math.min(1, Math.max(0, (scrollOffset - (HEADER_HEIGHT_PX * 0.5)) / (HEADER_HEIGHT_PX * 0.2)))
+  
+  // showFixedHeader: True when the main header has scrolled mostly past the view
+  const showFixedHeader = useMemo(() => scrollOffset > (HEADER_HEIGHT_PX - FIXED_TOP_BAR_HEIGHT), [scrollOffset]);
+  
+  // largeTitleOpacity: Fades OUT the large header title as we scroll down (0% to 100% scroll)
+  const largeTitleOpacity = useMemo(() => 
+    Math.min(1, Math.max(0, (HEADER_HEIGHT_PX - scrollOffset) / HEADER_HEIGHT_PX))
   , [scrollOffset]);
+
+  // smallTitleOpacity: Fades IN the small fixed title starting earlier (40% to 60%)
+  const smallTitleOpacity = useMemo(() => 
+    // START FADE-IN EARLIER: Starts at 40% and finishes at 60% of the header scroll
+    Math.min(1, Math.max(0, (scrollOffset - (HEADER_HEIGHT_PX * 0.4)) / (HEADER_HEIGHT_PX * 0.2)))
+  , [scrollOffset]);
+  
+  // headerOpacity: Fades out the main header background
+  const headerOpacity = useMemo(() => 
+    Math.max(0.1, 1 - (scrollOffset / HEADER_HEIGHT_PX) * 1.5), // Fade out faster
+  [scrollOffset]);
   // -------------------------------------------------------------------------
 
-
-  // 🟢 Fetch playlist + songs
+  // 🟢 Fetch playlist + songs 
   useEffect(() => {
     if (!id) {
       setErr("Invalid Playlist ID");
@@ -68,7 +94,7 @@ export default function PlaylistPage() {
         // Playlist info
         const { data: playlistData, error: playlistError } = await supabase
           .from("playlists")
-          .select("*, name") 
+          .select("*, name, description") 
           .eq("id", id)
           .single();
 
@@ -81,15 +107,15 @@ export default function PlaylistPage() {
           .from("playlist_songs")
           .select(
             `
-						song:songs (
-							id,
-							title,
-							cover_url,
-							audio_url,
-							duration,
-							artist_name
-						)
-					`
+              song:songs (
+                id,
+                title,
+                cover_url,
+                audio_url,
+                duration,
+                artist_name
+              )
+            `
           )
           .eq("playlist_id", id);
 
@@ -112,7 +138,7 @@ export default function PlaylistPage() {
     fetchData();
   }, [id]);
 
-  // 🟢 Generate playlist cover from songs (Unchanged)
+  // 🟢 Generate playlist cover from songs
   const generatePlaylistCover = async () => {
     if (!playlist?.id) return;
     setGeneratingCover(true);
@@ -148,7 +174,7 @@ export default function PlaylistPage() {
     }
   };
 
-  // 🟢 Handle manual cover upload (Unchanged)
+  // 🟢 Handle manual cover upload
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !playlist?.id) return;
@@ -200,7 +226,7 @@ export default function PlaylistPage() {
     }
   };
 
-  // 🟢 Utility Functions (Unchanged)
+  // 🟢 Utility Functions
   const triggerFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -225,9 +251,20 @@ export default function PlaylistPage() {
   // 4. 🎨 Collapsible Header Component 
   const HeaderContent = useMemo(() => {
     
-    // Define the back button / sorting icons wrapper
-    const NavIcons = (
-        <div className="flex justify-between w-full">
+    return (
+      <>
+        {/* -------------------- 🆕 FIXED TOP BAR (Small Header) -------------------- */}
+        {/* This bar is always sticky and uses the dominant color */}
+        <div 
+          className="fixed top-0 left-0 right-0 z-[100] p-4 transition-all duration-300 flex items-center h-20"
+          style={{ 
+            backgroundColor: bgColor,
+            // Show shadow only after the main header is scrolled past
+            boxShadow: showFixedHeader ? '0 4px 6px rgba(0,0,0,0.5)' : 'none',
+          }}
+        >
+          {/* Back/Sort Icons */}
+          <div className="flex justify-between w-full">
             <button className="text-white hover:text-[#fa4565]">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -239,27 +276,15 @@ export default function PlaylistPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                     </svg>
                 </button>
-                <div className="w-6"></div> {/* Placeholder for space */}
+                <div className="w-6"></div> 
             </div>
-        </div>
-    );
-
-    return (
-      <>
-        {/* -------------------- 🆕 FIXED TOP BAR (Small Header) -------------------- */}
-        <div 
-          className="fixed top-0 left-0 right-0 z-40 p-4 transition-all duration-300 flex items-center h-20"
-          style={{ 
-            backgroundColor: showFixedHeader ? bgColor : 'transparent',
-            boxShadow: showFixedHeader ? '0 4px 6px rgba(0,0,0,0.5)' : 'none',
-          }}
-        >
-          {NavIcons} 
+          </div>
           
           {/* Collapsed Playlist Title - Centered over the content */}
           <h2 
             className="text-xl font-bold truncate absolute left-1/2 -translate-x-1/2 transition-opacity duration-300 w-1/3 text-center"
-            style={{ opacity: textOpacity, visibility: showFixedHeader ? 'visible' : 'hidden' }}
+            // Uses smallTitleOpacity for the smooth fade-in animation
+            style={{ opacity: smallTitleOpacity }}
           >
             {playlist?.name || 'Playlist'}
           </h2>
@@ -270,13 +295,11 @@ export default function PlaylistPage() {
         <header
           className="absolute inset-0 z-20 pt-20 pb-8 px-8 flex items-end transition-colors"
           style={{ 
-            // Set the gradient background using the dominant color
-            backgroundImage: `linear-gradient(to bottom, ${bgColor} 0%, rgba(26, 26, 26, 0.8) 100%)`,
             height: HEADER_HEIGHT_PX,
+            // Use the dominant color and apply the opacity/gradient based on scroll
+            backgroundImage: `linear-gradient(to bottom, ${bgColor} ${headerOpacity * 100}%, ${listAreaBg} 100%)`,
             // Apply parallax scroll effect
             transform: `translateY(${parallaxTranslate}px)`,
-            opacity: Math.max(0.2, 1 - scrollOffset / HEADER_HEIGHT_PX), 
-            pointerEvents: showFixedHeader ? 'none' : 'auto' 
           }}
         >
           {/* Cover Image */}
@@ -297,7 +320,12 @@ export default function PlaylistPage() {
 
           <div className="flex flex-col gap-2 flex-1 ml-6">
             <p className="text-sm font-light text-white">Playlist</p>
-            <h1 className="text-5xl md:text-8xl font-extrabold break-words leading-none">
+            {/* Large title fades out */}
+            <h1 
+              className="text-5xl md:text-8xl font-extrabold break-words leading-none"
+              // The large title fades OUT smoothly as the small one fades IN
+              style={{ opacity: largeTitleOpacity }}
+            >
               {playlist?.name}
             </h1>
             <p className="text-sm text-gray-300 mt-2">
@@ -307,7 +335,7 @@ export default function PlaylistPage() {
         </header>
       </>
     );
-  }, [playlist, songs.length, scrollOffset, bgColor, coverUrl, showFixedHeader, parallaxTranslate, textOpacity]);
+  }, [playlist, songs.length, scrollOffset, bgColor, coverUrl, showFixedHeader, parallaxTranslate, largeTitleOpacity, smallTitleOpacity, headerOpacity, listAreaBg]);
   
 
   // 5. 🎨 LIST VIEW TABLE UI 
@@ -316,13 +344,13 @@ export default function PlaylistPage() {
       <div className="rounded-xl shadow-2xl overflow-visible">
         
         {/* 🆕 STICKY TABLE HEADER */}
-        {/* This header sits right below the sticky Action Row (150px = 80px fixed bar + 70px action row approx) */}
+        {/* This sticks right below the Fixed Top Bar (80px) + Action Row (96px) = 176px */}
         <div 
           className="grid grid-cols-[32px_1fr_32px]
-					  md:grid-cols-[32px_5fr_3fr_1fr]
-					  text-gray-400 text-[10px] md:text-xs uppercase font-light
-					  border-b border-[#222] py-2 md:py-3 px-8 sticky z-30 bg-[#1a1a1a]"
-          style={{ top: '150px' }} 
+              md:grid-cols-[32px_5fr_3fr_1fr]
+              text-gray-400 text-[10px] md:text-xs uppercase font-light
+              border-b border-[#222] py-2 md:py-3 px-8 sticky z-30 bg-[#1a1a1a] transition-all duration-300"
+          style={{ top: FIXED_TOP_BAR_HEIGHT + ACTION_ROW_HEIGHT }} 
         >
           <Hash className="w-4 h-4" />
           <div>Title</div>
@@ -330,7 +358,6 @@ export default function PlaylistPage() {
           <Clock className="w-4 h-4 justify-self-end mr-2" />
         </div>
         
-
         {/* Song Rows */}
         <div className="pb-40 bg-[#1a1a1a]">
           {songs.map((song, i) => {
@@ -341,9 +368,9 @@ export default function PlaylistPage() {
                 ref={isActive ? activeSongRef : null}
                 onClick={() => handlePlay(song, i)}
                 className={`grid grid-cols-[32px_1fr_32px]
-								md:grid-cols-[32px_5fr_3fr_1fr]
-								items-center py-2 md:py-3 px-8 group cursor-pointer border-b border-[#1b1b1b]
-								transition-all duration-200 select-none ${
+                  md:grid-cols-[32px_5fr_3fr_1fr]
+                  items-center py-2 md:py-3 px-8 group cursor-pointer border-b border-[#1b1b1b]
+                  transition-all duration-200 select-none ${
                   isActive
                     ? "text-[#fa4565] font-semibold"
                     : "text-gray-300 hover:text-[#fa4565]"
@@ -358,7 +385,7 @@ export default function PlaylistPage() {
                       </span>
                       <Play
                         className="w-4 h-4 absolute opacity-0 fill-[#fa4565] scale-0 transition-all duration-200
-												 group-hover:opacity-100 group-hover:scale-100"
+                          group-hover:opacity-100 group-hover:scale-100"
                       />
                     </>
                   ) : (
@@ -416,27 +443,27 @@ export default function PlaylistPage() {
   return (
     <main 
       ref={mainScrollRef}
-      onScroll={handleScroll}
       className="flex-1 overflow-y-auto custom-scroll text-white bg-[#1a1a1a] relative"
     >
       
-      {/* 1. FIXED/COLLAPSIBLE HEADER (Hidden until scroll) */}
+      {/* 1. FIXED/COLLAPSIBLE HEADER */}
       {HeaderContent}
 
-      {/* 2. HEADER SPACER/PLACEHOLDER: This pushes the scrollable content down */}
+      {/* 2. HEADER SPACER/PLACEHOLDER: This MUST match the full height of the CollapsibleHeaderContent to enable scroll */}
       <div style={{ height: HEADER_HEIGHT_PX }}></div>
 
-      {/* 🆕 NEW: STICKY ACTION ROW (Play Button, etc.) */}
+      {/* 🆕 STICKY ACTION ROW (Play Button, etc.) */}
       <div 
-        className="sticky z-30 transition-all duration-300"
-        // This row sits either below the large header (320px) or below the fixed top bar (80px)
-        style={{ top: showFixedHeader ? `${FIXED_TOP_BAR_HEIGHT}px` : HEADER_HEIGHT_PX, 
-                 backgroundColor: '#1a1a1a', // Always use the list background color here
-                 transitionProperty: 'top', // Only transition the top property
-                 boxShadow: showFixedHeader ? '0 4px 6px rgba(0,0,0,0.5)' : 'none',
+        className="sticky z-40 transition-all duration-300"
+        style={{ 
+          // CRITICAL: This sticks right below the Fixed Top Bar (80px)
+          top: `${FIXED_TOP_BAR_HEIGHT}px`, 
+          backgroundColor: listAreaBg, 
+          // Shadow appears only after main header is scrolled past (Spotify-like behavior)
+          boxShadow: showFixedHeader ? '0 4px 6px rgba(0,0,0,0.5)' : 'none',
         }}
       >
-        <div className="p-4 md:p-8 flex items-center justify-between">
+        <div className="p-4 md:p-8 flex items-center justify-between h-[96px]"> {/* Explicit height for action row */}
           <button
             onClick={() => handlePlay(songs[0], 0)} // Play first song
             className="bg-[#fa4565] rounded-full w-14 h-14 flex items-center justify-center shadow-2xl hover:scale-105 transition-transform"
@@ -465,7 +492,7 @@ export default function PlaylistPage() {
       
       {/* 4. MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-[#1e1e1e] p-6 rounded-xl shadow-2xl max-w-lg w-full m-4">
             <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-3">
               <h2 className="text-xl font-bold">Change Playlist Cover</h2>
@@ -491,7 +518,7 @@ export default function PlaylistPage() {
                   onClick={triggerFileInput}
                   disabled={uploadingCover || generatingCover}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 
-											 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {uploadingCover ? (
                     <>
@@ -532,7 +559,7 @@ export default function PlaylistPage() {
                     onClick={generatePlaylistCover}
                     disabled={generatingCover || uploadingCover}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#fa4565] 
-											 hover:bg-[#e03a58] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              hover:bg-[#e03a58] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {generatingCover ? (
                       <>
