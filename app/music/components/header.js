@@ -19,34 +19,34 @@ import {
   ListPlus,
   Library,
 } from "lucide-react";
-// Ensure this path is correct for your Supabase client setup
-import { supabase } from "@/app/lib/supabaseClient";
 
-// NOTE: You MUST ensure these two modal components are imported or defined elsewhere 
-// for the PlaylistManager component to function without error.
-// import CreatePlaylistModal from "../components/CreatePlaylistModal";
-// import AddSongToPlaylistModal from "../components/AddSongToPlaylistModal";
+// Ensure these paths and the client are correctly configured for your environment
+import { supabase } from "@/app/lib/supabaseClient";
+import CreatePlaylistModal from "../components/CreatePlaylistModal";
+import AddSongToPlaylistModal from "../components/AddSongToPlaylistModal";
 
 
 // ---------------- UTILITY FUNCTION ----------------
 /**
  * Fetches the user's email ID from the server API.
+ * NOTE: This function is not used inside Header/SettingsPanel but is kept for completeness
+ * if it were needed outside of the main component's useEffect.
  * @returns {Promise<string | null>} The user's email or null.
  */
 const getMailId = async () => {
-    try {
-      const response = await fetch('/api/getToken');
-      if (!response.ok) {
-          return null;
-      }
-      const data = await response.json();
-      const mailId = data.user?.email || data.user?.mailid;
-      return mailId || null;
-
-    } catch (error) {
-      console.error("Error fetching user mail ID:", error);
+  try {
+    const response = await fetch('/api/getToken');
+    if (!response.ok) {
       return null;
     }
+    const data = await response.json();
+    const mailId = data.user?.email || data.user?.mailid;
+    return mailId || null;
+
+  } catch (error) {
+    console.error("Error fetching user mail ID:", error);
+    return null;
+  }
 };
 
 // ---------------- PLAYLIST MANAGER COMPONENT ----------------
@@ -54,179 +54,181 @@ const getMailId = async () => {
  * Displays and manages the user's playlists within the Settings Panel.
  */
 function PlaylistManager({ userMailId }) {
-    const [playlists, setPlaylists] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [activeMenuId, setActiveMenuId] = useState(null);
-    const [playlistIdToAdd, setPlaylistIdToAdd] = useState(null);
+  const [playlists, setPlaylists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [playlistIdToAdd, setPlaylistIdToAdd] = useState(null);
 
-    // Function to fetch playlists, filtered by userMailId
-    const getPlaylists = useCallback(async (mailId) => {
-        setLoading(true);
-        let query = supabase.from("playlists").select("id, name, image_url"); // Select only necessary fields
+  // Function to fetch playlists, filtered by userMailId
+  const getPlaylists = useCallback(async (mailId) => {
+    setLoading(true);
+    let query = supabase.from("playlists").select("id, name, image_url"); // Select only necessary fields
 
-        if (mailId) {
-            query = query.eq("created_by", mailId);
-        }
-        
-        const { data, error } = await query.order("created_at", { ascending: false });
+    if (mailId) {
+      query = query.eq("created_by", mailId);
+    }
 
-        if (error) {
-            console.error("Error fetching playlists:", error);
-        }
+    const { data, error } = await query.order("created_at", { ascending: false });
 
-        setPlaylists(data || []);
-        setLoading(false);
-    }, []);
+    if (error) {
+      console.error("Error fetching playlists:", error);
+    }
 
-    useEffect(() => {
-        if (userMailId) {
-            getPlaylists(userMailId);
-        } else {
-            setLoading(false);
-        }
+    setPlaylists(data || []);
+    setLoading(false);
+  }, []);
 
-        const handleClickOutside = () => setActiveMenuId(null);
-        window.addEventListener("click", handleClickOutside);
-        return () => window.removeEventListener("click", handleClickOutside);
-    }, [userMailId, getPlaylists]); 
+  useEffect(() => {
+    if (userMailId) {
+      getPlaylists(userMailId);
+    } else {
+      setLoading(false);
+    }
 
-    const deletePlaylist = async (id) => {
-        setActiveMenuId(null);
-        if (!confirm("Are you sure you want to delete this playlist?")) return;
-        
-        const previousPlaylists = [...playlists];
-        setPlaylists(playlists.filter((p) => p.id !== id));
+    const handleClickOutside = () => setActiveMenuId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [userMailId, getPlaylists]);
 
-        const { error } = await supabase.from("playlists").delete().eq("id", id);
+  const deletePlaylist = async (id) => {
+    setActiveMenuId(null);
+    if (!confirm("Are you sure you want to delete this playlist?")) return;
 
-        if (error) {
-            console.error("Delete failed:", error);
-            alert(`Error: ${error.message}`);
-            setPlaylists(previousPlaylists);
-        }
-    };
+    const previousPlaylists = [...playlists];
+    setPlaylists(playlists.filter((p) => p.id !== id));
+
+    // Also need to delete associated songs from the playlist_songs table if applicable
+    // Not explicitly shown here, but crucial for database integrity.
     
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Library size={20} className="text-[#fa4565]"/> Your Playlists
-                </h3>
-                <button
-                    className="p-2 cursor-pointer text-gray-400 hover:bg-[#fa4565] rounded-full hover:text-black transition"
-                    onClick={() => userMailId ? setShowCreateModal(true) : alert("Please log in to create a playlist")}
-                    disabled={!userMailId} 
-                    title="Create New Playlist"
-                >
-                    <Plus size={20} />
-                </button>
-            </div>
+    const { error } = await supabase.from("playlists").delete().eq("id", id);
 
-            {!userMailId && !loading && (
-                <p className="text-red-400 text-sm">Please log in to manage your playlists.</p>
-            )}
-            
-            {loading && <p className="text-gray-500 text-sm">Loading...</p>}
+    if (error) {
+      console.error("Delete failed:", error);
+      alert(`Error: ${error.message}`);
+      setPlaylists(previousPlaylists);
+    }
+  };
 
-            {userMailId && playlists.length === 0 && !loading && (
-                <p className="text-gray-500 text-sm">No playlists found. Create your first one!</p>
-            )}
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-4">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <Library size={20} className="text-[#fa4565]"/> Your Playlists
+        </h3>
+        <button
+          className="p-2 cursor-pointer text-gray-400 hover:bg-[#fa4565] rounded-full hover:text-black transition"
+          onClick={() => userMailId ? setShowCreateModal(true) : alert("Please log in to create a playlist")}
+          disabled={!userMailId}
+          title="Create New Playlist"
+        >
+          <Plus size={20} />
+        </button>
+      </div>
 
-            {userMailId && playlists.length > 0 && (
-                <div className="flex flex-col gap-2">
-                    {playlists.map((p) => (
-                        <div 
-                            key={p.id} 
-                            className={`relative group ${activeMenuId === p.id ? "z-50" : "z-0"}`}
-                        >
-                            <Link
-                                href={`/playlist/${p.id}`}
-                                onClick={() => setActiveMenuId(null)} // Close menu on click
-                                className="bg-[#1a1a1a] p-3 rounded-xl flex items-center gap-3 hover:bg-[#2a2a2a] transition pr-10"
-                            >
-                                <div className="relative h-10 w-10 min-w-[2.5rem] rounded-md overflow-hidden bg-gray-800">
-                                    {p.image_url ? (
-                                        <img 
-                                            src={p.image_url} 
-                                            alt={p.name} 
-                                            className="h-full w-full object-cover" 
-                                        />
-                                    ) : (
-                                        <Music size={16} className="text-gray-400 m-auto h-full" /> 
-                                    )}
-                                </div>
-                                <div className="flex flex-col overflow-hidden">
-                                    <span className="font-medium text-white truncate text-sm">{p.name}</span>
-                                    <span className="text-xs text-gray-500 truncate">Playlist</span>
-                                </div>
-                            </Link>
+      {!userMailId && !loading && (
+        <p className="text-red-400 text-sm">Please log in to manage your playlists.</p>
+      )}
 
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setActiveMenuId(activeMenuId === p.id ? null : p.id);
-                                    }}
-                                    className={`
-                                        p-2 rounded-full transition cursor-pointer
-                                        ${activeMenuId === p.id 
-                                            ? "text-white opacity-100" 
-                                            : "text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-black/50"
-                                        }
-                                    `}
-                                >
-                                    <MoreVertical size={18} />
-                                </button>
+      {loading && <p className="text-gray-500 text-sm">Loading...</p>}
 
-                                {activeMenuId === p.id && (
-                                    <div 
-                                        className="absolute right-0 top-10 w-48 bg-[#222] border border-gray-700 rounded-lg shadow-2xl overflow-hidden flex flex-col py-1 z-[100]"
-                                        onClick={(e) => e.stopPropagation()} 
-                                    >
-                                        <button 
-                                            onClick={() => {
-                                                setPlaylistIdToAdd(p.id);
-                                                setActiveMenuId(null);
-                                            }}
-                                            className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 text-left w-full cursor-pointer"
-                                        >
-                                            <ListPlus size={16} /> Add Song
-                                        </button>
-                                        
-                                        <button 
-                                            onClick={() => deletePlaylist(p.id)}
-                                            className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-900/20 text-left w-full cursor-pointer"
-                                        >
-                                            <Trash2 size={16} /> Delete Playlist
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+      {userMailId && playlists.length === 0 && !loading && (
+        <p className="text-gray-500 text-sm">No playlists found. Create your first one!</p>
+      )}
+
+      {userMailId && playlists.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {playlists.map((p) => (
+            <div 
+              key={p.id} 
+              className={`relative group ${activeMenuId === p.id ? "z-50" : "z-0"}`}
+            >
+              <Link
+                href={`/playlist/${p.id}`}
+                onClick={() => setActiveMenuId(null)} // Close menu on click
+                className="bg-[#1a1a1a] p-3 rounded-xl flex items-center gap-3 hover:bg-[#2a2a2a] transition pr-10"
+              >
+                <div className="relative h-10 w-10 min-w-[2.5rem] rounded-md overflow-hidden bg-gray-800">
+                  {p.image_url ? (
+                    <img 
+                      src={p.image_url} 
+                      alt={p.name} 
+                      className="h-full w-full object-cover" 
+                    />
+                  ) : (
+                    <Music size={16} className="text-gray-400 m-auto h-full" /> 
+                  )}
                 </div>
-            )}
-            
-            {/* NOTE: You need to implement/import these modals for playlist management to work.
-            */}
-            {/* {showCreateModal && (
-                <CreatePlaylistModal 
-                    close={() => setShowCreateModal(false)} 
-                    refresh={() => getPlaylists(userMailId)} 
-                    createdBy={userMailId}
-                />
-            )}
-            
-            {playlistIdToAdd && (
-                <AddSongToPlaylistModal 
-                    playlistId={playlistIdToAdd} 
-                    close={() => setPlaylistIdToAdd(null)} 
-                />
-            )} */}
+                <div className="flex flex-col overflow-hidden">
+                  <span className="font-medium text-white truncate text-sm">{p.name}</span>
+                  <span className="text-xs text-gray-500 truncate">Playlist</span>
+                </div>
+              </Link>
+
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActiveMenuId(activeMenuId === p.id ? null : p.id);
+                  }}
+                  className={`
+                    p-2 rounded-full transition cursor-pointer
+                    ${activeMenuId === p.id 
+                        ? "text-white opacity-100" 
+                        : "text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-black/50"
+                    }
+                  `}
+                >
+                  <MoreVertical size={18} />
+                </button>
+
+                {activeMenuId === p.id && (
+                  <div 
+                    className="absolute right-0 top-10 w-48 bg-[#222] border border-gray-700 rounded-lg shadow-2xl overflow-hidden flex flex-col py-1 z-[100]"
+                    onClick={(e) => e.stopPropagation()} 
+                  >
+                    <button 
+                      onClick={() => {
+                        setPlaylistIdToAdd(p.id);
+                        setActiveMenuId(null);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 text-left w-full cursor-pointer"
+                    >
+                      <ListPlus size={16} /> Add Song
+                    </button>
+                    
+                    <button 
+                      onClick={() => deletePlaylist(p.id)}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-900/20 text-left w-full cursor-pointer"
+                    >
+                      <Trash2 size={16} /> Delete Playlist
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-    );
+      )}
+      
+      {/* 🟢 MODALS ARE NOW UNCOMMENTED AND READY TO RENDER */}
+      {showCreateModal && (
+        <CreatePlaylistModal 
+          close={() => setShowCreateModal(false)} 
+          refresh={() => getPlaylists(userMailId)} 
+          createdBy={userMailId}
+        />
+      )}
+      
+      {playlistIdToAdd && (
+        <AddSongToPlaylistModal 
+          playlistId={playlistIdToAdd} 
+          close={() => setPlaylistIdToAdd(null)} 
+        />
+      )}
+    </div>
+  );
 }
 
 
@@ -318,68 +320,68 @@ function SettingsPanel({ open, onClose, user }) {
 
         {/* USER CARD & UPLOAD */}
         <div className="space-y-4 pt-4">
-            <div className="flex items-center gap-3 p-3 bg-[#161616] rounded-xl border border-[#fa4565]/20">
-                {preview ? (
-                    <>
-                        <img src={preview} className="w-12 h-12 rounded-full object-cover" />
-                        <div className="text-xs text-gray-400 ml-2">Preview shown (not saved)</div>
-                    </>
-                ) : displayUser.img ? (
-                    <img
-                        src={displayUser.img}
-                        className="w-12 h-12 rounded-full object-cover"
-                    />
-                ) : (
-                    <div className="w-12 h-12 bg-[#fa4565] rounded-full flex items-center justify-center font-bold text-lg">
-                        {initial}
-                    </div>
-                )}
+          <div className="flex items-center gap-3 p-3 bg-[#161616] rounded-xl border border-[#fa4565]/20">
+            {preview ? (
+              <>
+                <img src={preview} className="w-12 h-12 rounded-full object-cover" />
+                <div className="text-xs text-gray-400 ml-2">Preview shown (not saved)</div>
+              </>
+            ) : displayUser.img ? (
+              <img
+                src={displayUser.img}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 bg-[#fa4565] rounded-full flex items-center justify-center font-bold text-lg">
+                {initial}
+              </div>
+            )}
 
-                <div>
-                    <h4 className="font-semibold">{displayUser.full_name}</h4>
-                    <p className="text-[12px] text-gray-400 truncate">
-                        {displayUser.email}
-                    </p>
-                </div>
+            <div>
+              <h4 className="font-semibold">{displayUser.full_name}</h4>
+              <p className="text-[12px] text-gray-400 truncate">
+                {displayUser.email}
+              </p>
             </div>
+          </div>
 
-            {/* Upload Image */}
-            <label className="cursor-pointer flex items-center gap-2 bg-[#1c1c1c] hover:bg-[#222] p-3 rounded-lg border border-[#333] text-sm">
-                <Upload size={18} />
-                {uploading ? "Uploading..." : "Upload Profile Image"}
+          {/* Upload Image */}
+          <label className="cursor-pointer flex items-center gap-2 bg-[#1c1c1c] hover:bg-[#222] p-3 rounded-lg border border-[#333] text-sm">
+            <Upload size={18} />
+            {uploading ? "Uploading..." : "Upload Profile Image"}
 
-                <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleUpload}
-                />
-            </label>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUpload}
+            />
+          </label>
         </div>
 
 
         {/* MAIN SETTINGS CONTENT AREA (Playlists & Options) */}
         <div className="flex-1 space-y-6 pt-4 overflow-y-auto custom-scroll">
-            
-            {/* PLAYLIST MANAGER SECTION */}
-            <PlaylistManager userMailId={displayUser.email} />
+          
+          {/* PLAYLIST MANAGER SECTION */}
+          <PlaylistManager userMailId={displayUser.email} />
 
-            {/* GENERAL OPTIONS */}
-            <ul className="space-y-2 border-t border-[#2a2a2a] pt-4">
-                {[{ icon: User2, label: "My Account" },
-                    { icon: Palette, label: "Theme" },
-                    { icon: Globe, label: "Language" },
-                    { icon: ShieldCheck, label: "Security" }].map(
-                    ({ icon: Icon, label }) => (
-                        <div
-                            key={label}
-                            className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"
-                        >
-                            <Icon size={20} /> {label}
-                        </div>
-                    )
-                )}
-            </ul>
+          {/* GENERAL OPTIONS */}
+          <ul className="space-y-2 border-t border-[#2a2a2a] pt-4">
+            {[{ icon: User2, label: "My Account" },
+              { icon: Palette, label: "Theme" },
+              { icon: Globe, label: "Language" },
+              { icon: ShieldCheck, label: "Security" }].map(
+                ({ icon: Icon, label }) => (
+                  <div
+                    key={label}
+                    className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"
+                  >
+                    <Icon size={20} /> {label}
+                  </div>
+                )
+              )}
+          </ul>
         </div>
 
         {/* LOGOUT */}
