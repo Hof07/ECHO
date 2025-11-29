@@ -162,10 +162,42 @@ export const PlayerProvider = ({ children }) => {
     };
   }, [currentSong]);
 
-  // Apply volume on mount / change
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
+
+  // ---- MEDIA SESSION API ----
+useEffect(() => {
+  if (!currentSong || typeof navigator.mediaSession === "undefined") return;
+
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: currentSong.title || "Unknown Title",
+    artist: currentSong.artist_name || "Unknown Artist",
+    album: currentSong.album || "",
+    artwork: [
+      {
+        src: currentSong.cover_url, // ONLY ONE IMAGE (IMPORTANT)
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+  });
+
+  navigator.mediaSession.setActionHandler("play", () => audioRef.current?.play());
+  navigator.mediaSession.setActionHandler("pause", () => audioRef.current?.pause());
+  navigator.mediaSession.setActionHandler("previoustrack", playPrev);
+  navigator.mediaSession.setActionHandler("nexttrack", playNext);
+
+  navigator.mediaSession.setActionHandler("seekto", (event) => {
+    if (event.fastSeek && "fastSeek" in audioRef.current) {
+      audioRef.current.fastSeek(event.seekTime);
+    } else {
+      audioRef.current.currentTime = event.seekTime;
+    }
+  });
+}, [currentSong, isPlaying]);
+
+
   const currentSongId = currentSong?.id || null;
   return (
     <PlayerContext.Provider
@@ -194,4 +226,4 @@ export const PlayerProvider = ({ children }) => {
       <audio ref={audioRef} />
     </PlayerContext.Provider>
   );
-};  
+};
