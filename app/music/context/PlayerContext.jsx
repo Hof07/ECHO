@@ -25,32 +25,28 @@ export const PlayerProvider = ({ children }) => {
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1.0);
 
+  // -------------------------
+  // LOAD SONG
+  // -------------------------
   const loadAndPlay = (song, index = 0) => {
-    if (!song) return;
     setCurrentIndex(index);
     setCurrentSong(song);
   };
 
   const playSong = (song, index, list = []) => {
-    if (Array.isArray(list) && list.length) {
-      setPlaylist(list);
-    }
+    if (list.length) setPlaylist(list);
     loadAndPlay(song, index);
   };
 
-  const togglePlay = async () => {
+  // -------------------------
+  // TOGGLE PLAY
+  // -------------------------
+  const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      try {
-        await audio.play();
-      } catch {
-        setIsPlaying(false);
-      }
-    }
+    if (audio.paused) audio.play();
+    else audio.pause();
   };
 
   const playNext = () => {
@@ -58,11 +54,6 @@ export const PlayerProvider = ({ children }) => {
     const nextIndex = (currentIndex + 1) % playlist.length;
     loadAndPlay(playlist[nextIndex], nextIndex);
   };
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.playbackRate = playbackRate;
-    }
-  }, [playbackRate]);
 
   const playPrev = () => {
     if (!playlist.length) return;
@@ -70,17 +61,15 @@ export const PlayerProvider = ({ children }) => {
     loadAndPlay(playlist[prevIndex], prevIndex);
   };
 
-  const seekTo = (time) => {
+  const seekTo = (t) => {
     if (!audioRef.current) return;
-    audioRef.current.currentTime = time;
-    setProgress(time);
+    audioRef.current.currentTime = t;
   };
 
   const toggleLoop = () => {
-    setIsLoop((s) => {
-      const next = !s;
-      if (audioRef.current) audioRef.current.loop = next;
-      return next;
+    setIsLoop((p) => {
+      if (audioRef.current) audioRef.current.loop = !p;
+      return !p;
     });
   };
 
@@ -89,84 +78,71 @@ export const PlayerProvider = ({ children }) => {
     if (audioRef.current) audioRef.current.volume = val;
   };
 
-  // Sync UI state with audio element events (FIX IMPORTANT!)
+  // -------------------------
+  // AUDIO BASE EVENTS
+  // -------------------------
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
+    const onTimeUpdate = () => setProgress(audio.currentTime);
+    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onEnded = () => {
+      if (!audio.loop) playNext();
+    };
 
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("ended", onEnded);
 
     return () => {
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("ended", onEnded);
     };
   }, []);
 
-  // Audio events
+  // -------------------------
+  // LOAD SONG + AUTO-PLAY
+  // -------------------------
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !currentSong) return;
 
-    const onTimeUpdate = () => setProgress(audio.currentTime);
-    const onLoadedMeta = () => setDuration(audio.duration || 0);
-    const onEnded = () => {
-      if (!audio.loop) setTimeout(() => playNext(), 50);
-    };
-
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMeta);
-    audio.addEventListener("ended", onEnded);
-
-    return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMeta);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, [playlist, currentIndex, isLoop]);
-
-  // Force load and play on song change
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (!currentSong) {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      setIsPlaying(false);
-      setProgress(0);
-      setDuration(0);
-      return;
-    }
-
-    audio.pause();
     audio.src = currentSong.audio_url;
     audio.crossOrigin = "anonymous";
     audio.load();
 
-    const handleLoadedData = async () => {
-      try {
-        await audio.play();
-      } catch {
-        setIsPlaying(false);
-      }
-    };
-
-    audio.addEventListener("loadeddata", handleLoadedData);
-    return () => {
-      audio.removeEventListener("loadeddata", handleLoadedData);
-    };
+    audio.play().catch(() => setIsPlaying(false));
   }, [currentSong]);
 
-  // Apply volume on mount / change
+  // -------------------------
+  // MEDIA SESSION API
+  // -------------------------
   useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-  const currentSongId = currentSong?.id || null;
+    if (!("mediaSession" in navigator) || !currentSong) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentSong.title,
+      artist: currentSong.artist_name || "Unknown",
+      artwork: [{ src: currentSong.cover_url, sizes: "512x512" }],
+    });
+
+    navigator.mediaSession.setActionHandler("play", togglePlay);
+    navigator.mediaSession.setActionHandler("pause", togglePlay);
+    navigator.mediaSession.setActionHandler("nexttrack", playNext);
+    navigator.mediaSession.setActionHandler("previoustrack", playPrev);
+    navigator.mediaSession.setActionHandler("seekto", (d) =>
+      seekTo(d.seekTime)
+    );
+  }, [currentSong]);
+
   return (
     <PlayerContext.Provider
       value={{
@@ -178,7 +154,6 @@ export const PlayerProvider = ({ children }) => {
         duration,
         isLoop,
         volume,
-        currentSongId,
         playbackRate,
         setPlaybackRate,
         playSong,
@@ -191,7 +166,7 @@ export const PlayerProvider = ({ children }) => {
       }}
     >
       {children}
-      <audio ref={audioRef} />
+      <audio ref={audioRef} preload="metadata" />
     </PlayerContext.Provider>
   );
 };
