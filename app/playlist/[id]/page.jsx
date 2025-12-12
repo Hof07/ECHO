@@ -422,7 +422,13 @@ export default function PlaylistPage() {
   );
 
   // 2. ERROR AND LOADING STATES
-  if (loading || loadingColor) return <div className="p-10 text-white">Loading...</div>;
+  if (loading || loadingColor) return (
+  <div className="flex justify-center items-center h-screen">
+    <div className="circle-loader"></div>
+  </div>
+);
+
+
   if (err) return <div className="p-10 text-red-600">{err}</div>;
 
   // ---------------- MAIN RENDER ----------------
