@@ -54,10 +54,8 @@ export default function PlaylistPage() {
   );
 
   const bgColor = dominantColor || "#2c2c2c";
-  const listAreaBg = "#1a1a1a"; // A darker color for the list area
-
-  // ------------ SCROLL HANDLING (single, optimized) ------------
-  // We attach a single scroll listener to mainScrollRef and update scrollOffset via rAF for smoothness.
+  const listAreaBg = "#1a1a1a"; 
+  
   useEffect(() => {
   let raf = null;
 
@@ -358,7 +356,8 @@ export default function PlaylistPage() {
       <div className="rounded-xl shadow-2xl overflow-visible">
         {/* STICKY TABLE HEADER */}
         <div
-          className="grid grid-cols-[32px_1fr_32px] md:grid-cols-[32px_5fr_3fr_1fr] text-gray-400 text-[10px] md:text-xs uppercase font-light border-b border-[#222] py-2 md:py-3 px-8 sticky z-30 bg-[#1a1a1a]"
+          // MODIFIED: px-4 on mobile, md:px-8 on desktop
+          className="grid grid-cols-[32px_1fr_32px] md:grid-cols-[32px_5fr_3fr_1fr] text-gray-400 text-[10px] md:text-xs uppercase font-light border-b border-[#222] py-2 md:py-3 px-4 md:px-8 sticky z-30 bg-[#1a1a1a]"
           style={{ top: FIXED_TOP_BAR_HEIGHT + ACTION_ROW_HEIGHT }}
         >
           <Hash className="w-4 h-4" />
@@ -376,7 +375,8 @@ export default function PlaylistPage() {
                 key={song.id}
                 ref={isActive ? activeSongRef : null}
                 onClick={() => handlePlay(song, i)}
-                className={`grid grid-cols-[32px_1fr_32px] md:grid-cols-[32px_5fr_3fr_1fr] items-center py-2 md:py-3 px-8 group cursor-pointer border-b border-[#1b1b1b] transition-all duration-200 select-none ${
+                // MODIFIED: px-4 on mobile, md:px-8 on desktop
+                className={`grid grid-cols-[32px_1fr_32px] md:grid-cols-[32px_5fr_3fr_1fr] items-center py-2 md:py-3 px-4 md:px-8 group cursor-pointer border-b border-[#1b1b1b] transition-all duration-200 select-none ${
                   isActive ? "text-[#fa4565] font-semibold" : "text-gray-300 hover:text-[#fa4565]"
                 }`}
               >
@@ -466,8 +466,8 @@ export default function PlaylistPage() {
         </div>
       </div>
 
-      {/* SONG LIST */}
-      <div className="p-6">{ListView}</div>
+      {/* SONG LIST (MODIFIED: Removed horizontal padding to use full width) */}
+      <div className="py-6">{ListView}</div>
 
       {/* MODAL */}
       {isModalOpen && (
