@@ -161,10 +161,6 @@ const FullScreenPlayer = ({
               className="absolute top-0 left-0 h-2 bg-white rounded-full transition-all"
               style={{ width: `${progressPercent}%` }}
             />
-            {/* <div
-              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full"
-              style={{ left: `calc(${progressPercent}% - 8px)` }}
-            /> */}
           </div>
 
           <div className="flex justify-between text-xs opacity-75 mt-2">
