@@ -58,6 +58,7 @@ export const PlayerProvider = ({ children }) => {
     const nextIndex = (currentIndex + 1) % playlist.length;
     loadAndPlay(playlist[nextIndex], nextIndex);
   };
+
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.playbackRate = playbackRate;
@@ -89,7 +90,7 @@ export const PlayerProvider = ({ children }) => {
     if (audioRef.current) audioRef.current.volume = val;
   };
 
-  // Sync UI state with audio element events (FIX IMPORTANT!)
+  // Sync UI play/pause with audio element
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -128,7 +129,7 @@ export const PlayerProvider = ({ children }) => {
     };
   }, [playlist, currentIndex, isLoop]);
 
-  // Force load and play on song change
+  // Load & auto-play on song change
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -157,48 +158,76 @@ export const PlayerProvider = ({ children }) => {
     };
 
     audio.addEventListener("loadeddata", handleLoadedData);
-    return () => {
-      audio.removeEventListener("loadeddata", handleLoadedData);
-    };
+    return () => audio.removeEventListener("loadeddata", handleLoadedData);
   }, [currentSong]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-  // ---- MEDIA SESSION API ----
-useEffect(() => {
-  if (!currentSong || typeof navigator.mediaSession === "undefined") return;
+  // ---- MEDIA SESSION + PROGRESS FIX ----
+  const updatePlaybackState = () => {
+    if (!navigator.mediaSession) return;
 
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: currentSong.title || "Unknown Title",
-    artist: currentSong.artist_name || "Unknown Artist",
-    album: currentSong.album || "",
-    artwork: [
-      {
-        src: currentSong.cover_url, // ONLY ONE IMAGE (IMPORTANT)
-        sizes: "512x512",
-        type: "image/png",
-      },
-    ],
-  });
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
 
-  navigator.mediaSession.setActionHandler("play", () => audioRef.current?.play());
-  navigator.mediaSession.setActionHandler("pause", () => audioRef.current?.pause());
-  navigator.mediaSession.setActionHandler("previoustrack", playPrev);
-  navigator.mediaSession.setActionHandler("nexttrack", playNext);
+    navigator.mediaSession.setPositionState({
+      duration: duration || 0,
+      playbackRate: playbackRate,
+      position: progress || 0,
+    });
+  };
 
-  navigator.mediaSession.setActionHandler("seekto", (event) => {
-    if (event.fastSeek && "fastSeek" in audioRef.current) {
-      audioRef.current.fastSeek(event.seekTime);
-    } else {
-      audioRef.current.currentTime = event.seekTime;
-    }
-  });
-}, [currentSong, isPlaying]);
+  // Sync on duration load
+  useEffect(() => {
+    updatePlaybackState();
+  }, [duration]);
 
+  // Sync on progress change
+  useEffect(() => {
+    updatePlaybackState();
+  }, [progress]);
+
+  // Sync on play/pause
+  useEffect(() => {
+    updatePlaybackState();
+  }, [isPlaying]);
+
+  // Set metadata (artwork, title)
+  useEffect(() => {
+    if (!currentSong || !navigator.mediaSession) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentSong.title || "Unknown Title",
+      artist: currentSong.artist_name || "Unknown Artist",
+      album: currentSong.album || "",
+      artwork: [
+        {
+          src: currentSong.cover_url,
+          sizes: "512x512",
+          type: "image/png",
+        },
+      ],
+    });
+
+    navigator.mediaSession.setActionHandler("play", () => audioRef.current?.play());
+    navigator.mediaSession.setActionHandler("pause", () => audioRef.current?.pause());
+    navigator.mediaSession.setActionHandler("previoustrack", playPrev);
+    navigator.mediaSession.setActionHandler("nexttrack", playNext);
+
+    navigator.mediaSession.setActionHandler("seekto", (event) => {
+      if (event.fastSeek && "fastSeek" in audioRef.current) {
+        audioRef.current.fastSeek(event.seekTime);
+      } else {
+        audioRef.current.currentTime = event.seekTime;
+      }
+    });
+
+    updatePlaybackState();
+  }, [currentSong]);
 
   const currentSongId = currentSong?.id || null;
+
   return (
     <PlayerContext.Provider
       value={{
