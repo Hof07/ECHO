@@ -151,6 +151,7 @@ function PlaylistManager({ userMailId }) {
                 <div className="relative h-10 w-10 min-w-[2.5rem] rounded-md overflow-hidden bg-gray-800">
                   {p.image_url ? (
                     <img 
+                      loading="lazy"
                       src={p.image_url} 
                       alt={p.name} 
                       className="h-full w-full object-cover" 
@@ -323,11 +324,12 @@ function SettingsPanel({ open, onClose, user }) {
           <div className="flex items-center gap-3 p-3 bg-[#161616] rounded-xl border border-[#fa4565]/20">
             {preview ? (
               <>
-                <img src={preview} className="w-12 h-12 rounded-full object-cover" />
+                <img loading="lazy" src={preview} className="w-12 h-12 rounded-full object-cover" />
                 <div className="text-xs text-gray-400 ml-2">Preview shown (not saved)</div>
               </>
             ) : displayUser.img ? (
               <img
+              loading="lazy"
                 src={displayUser.img}
                 className="w-12 h-12 rounded-full object-cover"
               />
@@ -530,6 +532,7 @@ export default function Header() {
             >
               {user?.img ? (
                 <img
+                loading="lazy"
                   src={user.img}
                   className="w-10 h-10 rounded-full border object-cover hover:scale-110 transition"
                   alt="profile"

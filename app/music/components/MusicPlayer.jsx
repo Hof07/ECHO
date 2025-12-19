@@ -128,6 +128,7 @@ const FullScreenPlayer = ({
       >
         {/* Album Artwork */}
         <img
+        loading="lazy"
           src={currentSong.cover_url}
           alt="cover"
           className="w-full aspect-square object-cover rounded-2xl mb-6 shadow-xl"
@@ -489,6 +490,7 @@ export default function MusicPlayer() {
           {/* 1. Song Info (Left) */}
           <div className="flex items-center gap-3 w-full sm:w-1/4 mb-3 sm:mb-0 order-1">
             <img
+            loading="lazy"
               src={currentSong.cover_url}
               alt="cover"
               className="w-12 h-12 rounded object-cover flex-shrink-0"

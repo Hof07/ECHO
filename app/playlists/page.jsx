@@ -91,6 +91,7 @@ function UltraPremiumPlaylistsPage() {
             >
               <div style={styles.imageWrapper}>
                 <img 
+                loading="lazy"
                   src={playlist.image_url || '/placeholder-playlist.png'} 
                   alt={`${playlist.name} cover`} 
                   style={styles.playlistImage}

@@ -343,6 +343,7 @@ export default function PlaylistPage() {
                 title="Click to change playlist cover"
               >
                 <img
+                loading="lazy"
                   src={coverUrl}
                   alt={`${playlist?.name} Cover`}
                   className="w-full h-full rounded-md object-cover"
@@ -430,7 +431,7 @@ export default function PlaylistPage() {
 
                 {/* Song Info */}
                 <div className="flex items-center gap-3">
-                  <img src={song.cover_url} alt={song.title} className="w-12 h-12 object-cover rounded-md shadow-lg" />
+                  <img loading="lazy" src={song.cover_url} alt={song.title} className="w-12 h-12 object-cover rounded-md shadow-lg" />
                   <div className="truncate">
                     <p className="truncate">{song.title}</p>
                     <p className="text-sm text-gray-400 truncate">{song.artist_name}</p>

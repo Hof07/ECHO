@@ -55,6 +55,7 @@ const SongListItem = React.memo(({ song, index, isActive, handlePlay, activeSong
             {/* 2. Title & Cover */}
             <div className="flex items-center gap-3">
                 <img
+                loading="lazy"
                     src={song.cover_url}
                     className="w-12 h-12 object-cover rounded-md shadow-lg"
                     alt={song.title}

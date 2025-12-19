@@ -133,6 +133,7 @@ export default function Sidebar() {
                 <div className="relative h-12 w-12 min-w-[3rem] rounded-md overflow-hidden bg-gray-800">
                   {p.image_url ? (
                     <img 
+                    loading="lazy"
                       src={p.image_url} 
                       alt={p.name} 
                       className="h-full w-full object-cover" 

@@ -348,6 +348,7 @@ export default function App() {
           {trendingArtists.map((artist, index) => (
             <AnimatedCard key={index} className="p-4 text-center group">
               <img
+                loading="lazy"
                 src={artist.image}
                 alt={artist.name}
                 className={`w-20 h-20 sm:w-28 sm:h-28 mx-auto mb-3 rounded-full object-cover border-4 border-black ring-2 ring-gray-700
@@ -386,6 +387,7 @@ export default function App() {
             >
               <div className="relative mb-3">
                 <img
+                  loading="lazy"
                   src={playlist.image}
                   alt={playlist.name}
                   className="w-full h-36 sm:h-48 object-cover rounded-lg transition-opacity duration-300 group-hover:opacity-70"

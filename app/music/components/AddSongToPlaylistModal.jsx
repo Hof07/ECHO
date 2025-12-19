@@ -101,7 +101,7 @@ export default function AddSongToPlaylistModal({ close, playlistId }) {
                     <div className="flex items-center gap-3 overflow-hidden">
                       {/* Song Image */}
                       <div className="h-10 w-10 bg-gray-800 rounded overflow-hidden flex-shrink-0">
-                        <img src={song.cover_url} alt={song.title} className="h-full w-full object-cover" />
+                        <img src={song.cover_url} loading="lazy" alt={song.title} className="h-full w-full object-cover" />
                       </div>
                       {/* Song Details */}
                       <div className="flex flex-col overflow-hidden">

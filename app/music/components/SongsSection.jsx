@@ -115,8 +115,10 @@ transition-all duration-200 select-none ${
 
                   <div className="flex items-center gap-3">
                     <img
+                    
                       src={song.cover_url}
                       alt={song.title}
+                      loading="lazy"
                       className="w-12 h-12 object-cover rounded-md shadow-lg"
                     />
                     <div className="truncate">
@@ -165,6 +167,7 @@ transition-all duration-200 select-none ${
                 {/* Cover */}
                 <div className="relative rounded-lg overflow-hidden">
                   <img
+                  loading="lazy"
                     src={song.cover_url}
                     className="w-full aspect-square object-cover"
                   />

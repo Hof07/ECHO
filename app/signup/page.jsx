@@ -485,6 +485,7 @@ export default function SignupPage() {
 
       {/* Profile Avatar */}
       <img
+      loading="lazy"
         src={avatarFor(form.username || form.email)}
         alt="User Avatar"
         className="w-24 h-24 rounded-full mx-auto shadow-xl border-4"
