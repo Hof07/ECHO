@@ -103,53 +103,41 @@ const FullScreenPlayer = ({
   }, [currentSong]);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4 z-[100] overflow-hidden bg-black transition-all duration-1000">
-      {/* 🎭 ANIMATED BACKGROUND LAYER */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div
-          className="absolute -top-[10%] -left-[10%] w-[120%] h-[120%] rounded-full opacity-40 mix-blend-screen animate-liquid-slow"
-          style={{
-            backgroundColor: dominantColor,
-            filter: "blur(80px)",
-            transition: "background-color 2s ease-in-out",
-          }}
-        />
-        <div
-          className="absolute -bottom-[10%] -right-[10%] w-[100%] h-[100%] rounded-full opacity-30 mix-blend-screen animate-liquid-fast"
-          style={{
-            backgroundColor: dominantColor,
-            filter: "blur(100px)",
-            transition: "background-color 2.5s ease-in-out",
-          }}
-        />
-        <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/60" />
-      </div>
-
-      {/* 🔘 Exit Fullscreen Button */}
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 z-[100] transition-all duration-700"
+      style={{
+        background: `linear-gradient(160deg, ${dominantColor}, #000)`,
+      }}
+    >
+      {/* 🔘 Exit Fullscreen Button (Top-Right) */}
       <button
         onClick={toggleFullscreen}
         className="absolute top-2 sm:top-4 cursor-pointer right-2 sm:right-4 p-2 sm:p-3 rounded-full hover:bg-white/20 
-        backdrop-blur-md transition border border-white/30 shadow-lg text-white
-        scale-90 sm:scale-100 z-50"
+    backdrop-blur-md transition border border-white/30 shadow-lg text-white
+    scale-90 sm:scale-100"
         title="Exit Fullscreen"
       >
         <Minimize className="w-4 h-4 sm:w-6 sm:h-6 opacity-90 hover:opacity-100" />
       </button>
-
-      {/* 🎵 YOUR EXACT CARD UI */}
-      <div className="relative z-10 w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15">
+      {/* 🎵 Glass Card (Responsive to Max Width) */}
+      <div
+        className="
+          w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between 
+          shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15
+        "
+      >
+        {/* Album Artwork */}
         <img
-          loading="lazy"
+        loading="lazy"
           src={currentSong.cover_url}
           alt="cover"
           className="w-full aspect-square object-cover rounded-2xl mb-6 shadow-xl"
         />
 
+        {/* Song Info */}
         <div className="text-center mb-4">
           <h1 className="text-xl font-semibold truncate">
-            {" "}
-            " {currentSong.title} "{" "}
+            " {currentSong.title} "
           </h1>
           <p className="text-sm opacity-80 truncate">
             {currentSong.artists?.name ||
@@ -158,6 +146,7 @@ const FullScreenPlayer = ({
           </p>
         </div>
 
+        {/* Seek Bar */}
         <div className="mb-6">
           <div
             ref={seekBarRef}
@@ -174,12 +163,14 @@ const FullScreenPlayer = ({
               style={{ width: `${progressPercent}%` }}
             />
           </div>
+
           <div className="flex justify-between text-xs opacity-75 mt-2">
             <span>{formatTime(progress)}</span>
             <span>{formatTime(duration - progress)}</span>
           </div>
         </div>
 
+        {/* Controls */}
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={toggleSleeperMode}
@@ -198,6 +189,7 @@ const FullScreenPlayer = ({
           >
             <SkipBack className="w-7 h-7" />
           </button>
+
           <button
             className="bg-white text-black cursor-pointer p-4 rounded-full hover:scale-110 transition shadow-lg"
             onClick={togglePlay}
@@ -208,12 +200,14 @@ const FullScreenPlayer = ({
               <Play className="w-6 h-6 " />
             )}
           </button>
+
           <button
             onClick={playNext}
             className="opacity-70 cursor-pointer hover:opacity-100"
           >
             <SkipForward className="w-7 h-7" />
           </button>
+
           <button
             onClick={toggleLoop}
             className={`${
@@ -224,7 +218,8 @@ const FullScreenPlayer = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Volume */}
+        <div className="flex items-center gap-3 ">
           <button onClick={toggleMute}>
             {isMuted ? (
               <VolumeX className="w-5 h-5 opacity-80" />
@@ -232,6 +227,7 @@ const FullScreenPlayer = ({
               <Volume2 className="w-5 h-5 opacity-80" />
             )}
           </button>
+
           <input
             type="range"
             min="0"
@@ -241,6 +237,7 @@ const FullScreenPlayer = ({
             onChange={(e) => changeVolume(parseFloat(e.target.value))}
             className="w-full h-[5px] rounded-full bg-white/20 cursor-pointer accent-white"
           />
+
           <Volume2 className="w-5 h-5 opacity-80" />
         </div>
       </div>
@@ -493,7 +490,7 @@ export default function MusicPlayer() {
           {/* 1. Song Info (Left) */}
           <div className="flex items-center gap-3 w-full sm:w-1/4 mb-3 sm:mb-0 order-1">
             <img
-              loading="lazy"
+            loading="lazy"
               src={currentSong.cover_url}
               alt="cover"
               className="w-12 h-12 rounded object-cover flex-shrink-0"
