@@ -103,82 +103,149 @@ const FullScreenPlayer = ({
   }, [currentSong]);
 
   return (
-  <div className="fixed inset-0 flex items-center justify-center p-4 z-[100] overflow-hidden bg-black transition-all duration-1000">
-    
-    {/* 🎭 FLOWING LIQUID BACKGROUND */}
-    <div className="absolute inset-0 z-0 pointer-events-none">
-      <div 
-        className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] opacity-40 mix-blend-screen animate-liquid-slow"
-        style={{ 
-          backgroundColor: dominantColor, 
-          filter: 'blur(120px)',
-          transition: 'background-color 3s ease-in-out'
-        }}
-      />
-      <div 
-        className="absolute -bottom-[25%] -right-[25%] w-[130%] h-[130%] opacity-30 mix-blend-screen animate-liquid-fast"
-        style={{ 
-          backgroundColor: dominantColor, 
-          filter: 'blur(140px)',
-          transition: 'background-color 4s ease-in-out'
-        }}
-      />
-      {/* High-end Noise Grain Overlay */}
-      <div className="absolute inset-0 opacity-[0.15] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-      {/* Dark Vignette Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/70" />
-    </div>
-
-    {/* 🔘 Exit Fullscreen Button */}
-    <button
-      onClick={toggleFullscreen}
-      className="absolute top-2 sm:top-4 cursor-pointer right-2 sm:right-4 p-2 sm:p-3 rounded-full hover:bg-white/20 
-      backdrop-blur-md transition border border-white/30 shadow-lg text-white
-      scale-90 sm:scale-100 z-50"
-      title="Exit Fullscreen"
-    >
-      <Minimize className="w-4 h-4 sm:w-6 sm:h-6 opacity-90 hover:opacity-100" />
-    </button>
-
-    {/* 🎵 YOUR EXACT CARD UI */}
-    <div className="relative z-10 w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15">
-      <img loading="lazy" src={currentSong.cover_url} alt="cover" className="w-full aspect-square object-cover rounded-2xl mb-6 shadow-xl" />
-
-      <div className="text-center mb-4">
-        <h1 className="text-xl font-semibold truncate"> " {currentSong.title} " </h1>
-        <p className="text-sm opacity-80 truncate">{currentSong.artists?.name || currentSong.artist_name || "Unknown Artist"}</p>
+    <div className="fixed inset-0 flex items-center justify-center p-4 z-[100] overflow-hidden bg-black transition-all duration-1000">
+      {/* 🎭 ANIMATED BACKGROUND LAYER */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div
+          className="absolute -top-[10%] -left-[10%] w-[120%] h-[120%] rounded-full opacity-40 mix-blend-screen animate-liquid-slow"
+          style={{
+            backgroundColor: dominantColor,
+            filter: "blur(80px)",
+            transition: "background-color 2s ease-in-out",
+          }}
+        />
+        <div
+          className="absolute -bottom-[10%] -right-[10%] w-[100%] h-[100%] rounded-full opacity-30 mix-blend-screen animate-liquid-fast"
+          style={{
+            backgroundColor: dominantColor,
+            filter: "blur(100px)",
+            transition: "background-color 2.5s ease-in-out",
+          }}
+        />
+        <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/60" />
       </div>
 
-      <div className="mb-6">
-        <div ref={seekBarRef} className="relative w-full h-2 cursor-pointer bg-white/20 rounded-full select-none" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-          <div className="absolute top-0 left-0 h-2 bg-white rounded-full transition-all" style={{ width: `${progressPercent}%` }} />
+      {/* 🔘 Exit Fullscreen Button */}
+      <button
+        onClick={toggleFullscreen}
+        className="absolute top-2 sm:top-4 cursor-pointer right-2 sm:right-4 p-2 sm:p-3 rounded-full hover:bg-white/20 
+        backdrop-blur-md transition border border-white/30 shadow-lg text-white
+        scale-90 sm:scale-100 z-50"
+        title="Exit Fullscreen"
+      >
+        <Minimize className="w-4 h-4 sm:w-6 sm:h-6 opacity-90 hover:opacity-100" />
+      </button>
+
+      {/* 🎵 YOUR EXACT CARD UI */}
+      <div className="relative z-10 w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between shadow-2xl bg-white/10 backdrop-blur-2xl border border-white/15">
+        <img
+          loading="lazy"
+          src={currentSong.cover_url}
+          alt="cover"
+          className="w-full aspect-square object-cover rounded-2xl mb-6 shadow-xl"
+        />
+
+        <div className="text-center mb-4">
+          <h1 className="text-xl font-semibold truncate">
+            {" "}
+            " {currentSong.title} "{" "}
+          </h1>
+          <p className="text-sm opacity-80 truncate">
+            {currentSong.artists?.name ||
+              currentSong.artist_name ||
+              "Unknown Artist"}
+          </p>
         </div>
-        <div className="flex justify-between text-xs opacity-75 mt-2">
-          <span>{formatTime(progress)}</span>
-          <span>{formatTime(duration - progress)}</span>
+
+        <div className="mb-6">
+          <div
+            ref={seekBarRef}
+            className="relative w-full h-2 cursor-pointer bg-white/20 rounded-full select-none"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div
+              className="absolute top-0 left-0 h-2 bg-white rounded-full transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-xs opacity-75 mt-2">
+            <span>{formatTime(progress)}</span>
+            <span>{formatTime(duration - progress)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={toggleSleeperMode}
+            title="Sleep Mode (30% Volume)"
+            className="p-1 transition-colors cursor-pointer hover:text-white"
+          >
+            <MoonStar
+              className={`w-6 h-6 ${
+                isSleeperMode ? "text-white" : "opacity-50 hover:opacity-100"
+              }`}
+            />
+          </button>
+          <button
+            onClick={handlePrevClick}
+            className="opacity-70 cursor-pointer hover:opacity-100"
+          >
+            <SkipBack className="w-7 h-7" />
+          </button>
+          <button
+            className="bg-white text-black cursor-pointer p-4 rounded-full hover:scale-110 transition shadow-lg"
+            onClick={togglePlay}
+          >
+            {isPlaying ? (
+              <Pause className="w-6 h-6" />
+            ) : (
+              <Play className="w-6 h-6 " />
+            )}
+          </button>
+          <button
+            onClick={playNext}
+            className="opacity-70 cursor-pointer hover:opacity-100"
+          >
+            <SkipForward className="w-7 h-7" />
+          </button>
+          <button
+            onClick={toggleLoop}
+            className={`${
+              isLoop ? "text-white" : "opacity-50 hover:opacity-100 "
+            }`}
+          >
+            <Repeat className="w-6 h-6 cursor-pointer" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button onClick={toggleMute}>
+            {isMuted ? (
+              <VolumeX className="w-5 h-5 opacity-80" />
+            ) : (
+              <Volume2 className="w-5 h-5 opacity-80" />
+            )}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => changeVolume(parseFloat(e.target.value))}
+            className="w-full h-[5px] rounded-full bg-white/20 cursor-pointer accent-white"
+          />
+          <Volume2 className="w-5 h-5 opacity-80" />
         </div>
       </div>
-
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={toggleSleeperMode} title="Sleep Mode (30% Volume)" className="p-1 transition-colors cursor-pointer hover:text-white">
-          <MoonStar className={`w-6 h-6 ${isSleeperMode ? "text-white" : "opacity-50 hover:opacity-100"}`} />
-        </button>
-        <button onClick={handlePrevClick} className="opacity-70 cursor-pointer hover:opacity-100"><SkipBack className="w-7 h-7" /></button>
-        <button className="bg-white text-black cursor-pointer p-4 rounded-full hover:scale-110 transition shadow-lg" onClick={togglePlay}>
-          {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 " />}
-        </button>
-        <button onClick={playNext} className="opacity-70 cursor-pointer hover:opacity-100"><SkipForward className="w-7 h-7" /></button>
-        <button onClick={toggleLoop} className={`${isLoop ? "text-white" : "opacity-50 hover:opacity-100 "}`}><Repeat className="w-6 h-6 cursor-pointer" /></button>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button onClick={toggleMute}>{isMuted ? <VolumeX className="w-5 h-5 opacity-80" /> : <Volume2 className="w-5 h-5 opacity-80" />}</button>
-        <input type="range" min="0" max="1" step="0.01" value={volume} onChange={(e) => changeVolume(parseFloat(e.target.value))} className="w-full h-[5px] rounded-full bg-white/20 cursor-pointer accent-white" />
-        <Volume2 className="w-5 h-5 opacity-80" />
-      </div>
     </div>
-  </div>
-);
+  );
 };
 
 // -----------------------------------------------------------------------------
