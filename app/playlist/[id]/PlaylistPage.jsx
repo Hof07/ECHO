@@ -81,22 +81,22 @@ export default function PlaylistPage() {
 
   // ------------ VISIBILITY / ANIMATION VALUES (derived) ------------
   // parallax: header moves up slower than scroll
-  const parallaxTranslate = useMemo(() => Math.max(-HEADER_HEIGHT_PX, -scrollOffset * 0.6), [scrollOffset]);
+  const parallaxTranslate = useMemo(
+    () => Math.max(-HEADER_HEIGHT_PX, -scrollOffset * 0.6),
+    [scrollOffset]
+  );
 
   // showFixedHeader: when the header has mostly scrolled past
   const showFixedHeader = useMemo(
-    () => scrollOffset > (HEADER_HEIGHT_PX - FIXED_TOP_BAR_HEIGHT - 20),
+    () => scrollOffset > HEADER_HEIGHT_PX - FIXED_TOP_BAR_HEIGHT - 20,
     [scrollOffset]
   );
 
   // largeTitleOpacity: fades OUT as we scroll down (1 -> 0)
-  const largeTitleOpacity = useMemo(
-    () => {
-      const t = (HEADER_HEIGHT_PX - scrollOffset) / HEADER_HEIGHT_PX;
-      return Math.max(0, Math.min(1, t));
-    },
-    [scrollOffset]
-  );
+  const largeTitleOpacity = useMemo(() => {
+    const t = (HEADER_HEIGHT_PX - scrollOffset) / HEADER_HEIGHT_PX;
+    return Math.max(0, Math.min(1, t));
+  }, [scrollOffset]);
 
   // smallTitleOpacity: fades IN earlier (40% -> 60% of header scroll)
   const smallTitleOpacity = useMemo(() => {
@@ -169,6 +169,7 @@ export default function PlaylistPage() {
     fetchData();
   }, [id]);
 
+
   // ---------------- GENERATE / UPLOAD COVER (kept same) ----------------
   const generatePlaylistCover = async () => {
     if (!playlist?.id) return;
@@ -187,9 +188,14 @@ export default function PlaylistPage() {
       }
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          result.error || `HTTP error! status: ${response.status}`
+        );
       }
-      setPlaylist((prev) => ({ ...prev, image_url: result.url + "?t=" + Date.now() }));
+      setPlaylist((prev) => ({
+        ...prev,
+        image_url: result.url + "?t=" + Date.now(),
+      }));
       alert("Playlist cover generated successfully!");
       setIsModalOpen(false);
     } catch (error) {
@@ -217,7 +223,9 @@ export default function PlaylistPage() {
         .upload(filePath, file, { cacheControl: "3600", upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = supabase.storage.from(COVER_BUCKET).getPublicUrl(filePath);
+      const { data: publicUrlData } = supabase.storage
+        .from(COVER_BUCKET)
+        .getPublicUrl(filePath);
       const newImageUrl = publicUrlData.publicUrl;
       const { error: updateError } = await supabase
         .from("playlists")
@@ -265,22 +273,46 @@ export default function PlaylistPage() {
             backgroundColor: bgColor,
             boxShadow: showFixedHeader ? "0 6px 18px rgba(0,0,0,0.45)" : "none",
             // Make the header slightly translucent when collapsed
-            backdropFilter: showFixedHeader ? "saturate(120%) blur(6px)" : "none",
+            backdropFilter: showFixedHeader
+              ? "saturate(120%) blur(6px)"
+              : "none",
           }}
         >
           <div className="flex justify-between w-full items-center">
             <div className="flex items-center gap-3">
               <a href="/music" className="text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-6 h-6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.75 19.5L8.25 12l7.5-7.5"
+                  />
                 </svg>
               </a>
             </div>
 
             <div className="flex items-center gap-4">
               <button className="text-white hover:text-[#fa4565] hidden md:inline-flex">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                  />
                 </svg>
               </button>
               <div className="w-6" />
@@ -302,7 +334,9 @@ export default function PlaylistPage() {
           className="absolute inset-0 z-20 pt-20 pb-8 px-6 sm:px-8 flex items-end transition-colors"
           style={{
             height: HEADER_HEIGHT_PX,
-            backgroundImage: `linear-gradient(to bottom, ${bgColor} ${Math.round(headerOpacity * 80)}%, ${listAreaBg} 100%)`,
+            backgroundImage: `linear-gradient(to bottom, ${bgColor} ${Math.round(
+              headerOpacity * 80
+            )}%, ${listAreaBg} 100%)`,
             transform: `translateY(${parallaxTranslate}px)`,
           }}
         >
@@ -314,7 +348,7 @@ export default function PlaylistPage() {
               title="Click to change playlist cover"
             >
               <img
-              loading="lazy"
+                loading="lazy"
                 src={coverUrl}
                 alt={`${playlist?.name} Cover`}
                 className="w-full h-full rounded-md object-cover"
@@ -329,13 +363,17 @@ export default function PlaylistPage() {
             {/* Large title fades out */}
             <h1
               className="text-4xl sm:text-6xl md:text-8xl font-extrabold break-words leading-none"
-              style={{ opacity: largeTitleOpacity, transition: "opacity 120ms linear" }}
+              style={{
+                opacity: largeTitleOpacity,
+                transition: "opacity 120ms linear",
+              }}
             >
               {playlist?.name}
             </h1>
 
             <p className="text-sm text-gray-300 mt-2">
-              {songs.length} {songs.length === 1 ? "song" : "songs"}
+              {songs.length} {songs.length === 1 ? "song" : "songs"} •{" "}
+              {formatPlaylistDuration(totalDurationSeconds)}
             </p>
           </div>
         </header>
@@ -379,7 +417,9 @@ export default function PlaylistPage() {
                 ref={isActive ? activeSongRef : null}
                 onClick={() => handlePlay(song, i)}
                 className={`grid grid-cols-[32px_1fr_32px] md:grid-cols-[32px_5fr_3fr_1fr] items-center py-2 md:py-3 px-8 group cursor-pointer border-b border-[#1b1b1b] transition-all duration-200 select-none ${
-                  isActive ? "text-[#fa4565] font-semibold" : "text-gray-300 hover:text-[#fa4565]"
+                  isActive
+                    ? "text-[#fa4565] font-semibold"
+                    : "text-gray-300 hover:text-[#fa4565]"
                 }`}
               >
                 {/* Play Button / Number */}
@@ -394,7 +434,11 @@ export default function PlaylistPage() {
                   ) : (
                     <div className="flex gap-[2px] transform rotate-180">
                       {[1, 2, 3].map((bar) => (
-                        <div key={bar} className="w-[3px] bg-[#fa4565] animate-equalizer rounded-full" style={{ animationDelay: `${bar * 0.1}s` }} />
+                        <div
+                          key={bar}
+                          className="w-[3px] bg-[#fa4565] animate-equalizer rounded-full"
+                          style={{ animationDelay: `${bar * 0.1}s` }}
+                        />
                       ))}
                     </div>
                   )}
@@ -402,18 +446,29 @@ export default function PlaylistPage() {
 
                 {/* Song Info */}
                 <div className="flex items-center gap-3">
-                  <img loading="lazy" src={song.cover_url} alt={song.title} className="w-12 h-12 object-cover rounded-md shadow-lg" />
+                  <img
+                    loading="lazy"
+                    src={song.cover_url}
+                    alt={song.title}
+                    className="w-12 h-12 object-cover rounded-md shadow-lg"
+                  />
                   <div className="truncate">
                     <p className="truncate">{song.title}</p>
-                    <p className="text-sm text-gray-400 truncate">{song.artist_name}</p>
+                    <p className="text-sm text-gray-400 truncate">
+                      {song.artist_name}
+                    </p>
                   </div>
                 </div>
 
                 {/* Artist */}
-                <div className="hidden md:block text-sm text-gray-400 truncate">{song.artist_name}</div>
+                <div className="hidden md:block text-sm text-gray-400 truncate">
+                  {song.artist_name}
+                </div>
 
                 {/* Duration */}
-                <div className="text-sm text-gray-400 justify-self-end">{formatDuration(song.duration)}</div>
+                <div className="text-sm text-gray-400 justify-self-end">
+                  {formatDuration(song.duration)}
+                </div>
               </div>
             );
           })}
@@ -424,12 +479,16 @@ export default function PlaylistPage() {
   );
 
   // 2. ERROR AND LOADING STATES
-  if (loading || loadingColor) return <div className="p-10 text-white">Loading...</div>;
+  if (loading || loadingColor)
+    return <div className="p-10 text-white">Loading...</div>;
   if (err) return <div className="p-10 text-red-600">{err}</div>;
 
   // ---------------- MAIN RENDER ----------------
   return (
-    <main ref={mainScrollRef} className="flex-1 overflow-y-auto custom-scroll text-white bg-[#1a1a1a] relative min-h-screen">
+    <main
+      ref={mainScrollRef}
+      className="flex-1 overflow-y-auto custom-scroll text-white bg-[#1a1a1a] relative min-h-screen"
+    >
       {/* 1. FIXED/COLLAPSIBLE HEADER */}
       {HeaderContent}
 
@@ -455,13 +514,30 @@ export default function PlaylistPage() {
           </button>
 
           <div className="flex gap-4 items-center">
-            <button className="text-gray-400 hover:text-white transition-colors p-2" title="Save to your library">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.05-4.312 2.52-1.928-1.47-3.593-2.52-5.32-2.52C4.1 3.75 2 5.765 2 8.25c0 7.22 8.8 12 10 12s10-4.78 10-12z" />
+            <button
+              className="text-gray-400 hover:text-white transition-colors p-2"
+              title="Save to your library"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.05-4.312 2.52-1.928-1.47-3.593-2.52-5.32-2.52C4.1 3.75 2 5.765 2 8.25c0 7.22 8.8 12 10 12s10-4.78 10-12z"
+                />
               </svg>
             </button>
 
-            <button className="text-gray-400 hover:text-white transition-colors p-2" title="More options">
+            <button
+              className="text-gray-400 hover:text-white transition-colors p-2"
+              title="More options"
+            >
               <MoreHorizontal className="w-6 h-6" />
             </button>
           </div>
@@ -477,7 +553,10 @@ export default function PlaylistPage() {
           <div className="bg-[#1e1e1e] p-6 rounded-xl shadow-2xl max-w-lg w-full m-4">
             <div className="flex justify-between items-center mb-4 border-b border-[#333] pb-3">
               <h2 className="text-xl font-bold">Change Playlist Cover</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white p-1">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-400 hover:text-white p-1"
+              >
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -489,8 +568,14 @@ export default function PlaylistPage() {
                   <Upload className="w-5 h-5 text-[#fa4565]" />
                   Upload Custom Image
                 </h3>
-                <p className="text-sm text-gray-400 mb-3">Select a file from your device to set as the playlist cover.</p>
-                <button onClick={triggerFileInput} disabled={uploadingCover || generatingCover} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <p className="text-sm text-gray-400 mb-3">
+                  Select a file from your device to set as the playlist cover.
+                </p>
+                <button
+                  onClick={triggerFileInput}
+                  disabled={uploadingCover || generatingCover}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {uploadingCover ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -503,7 +588,14 @@ export default function PlaylistPage() {
                     </>
                   )}
                 </button>
-                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{ display: "none" }} disabled={uploadingCover} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  style={{ display: "none" }}
+                  disabled={uploadingCover}
+                />
               </div>
 
               {/* AI Generation */}
@@ -513,8 +605,16 @@ export default function PlaylistPage() {
                     <RefreshCw className="w-5 h-5 text-[#fa4565]" />
                     Generate from Songs
                   </h3>
-                  <p className="text-sm text-gray-400 mb-3">Use the titles and artists from your <strong>{songs.length}</strong> songs to generate a unique cover art (requires server-side AI).</p>
-                  <button onClick={generatePlaylistCover} disabled={generatingCover || uploadingCover} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#fa4565] hover:bg-[#e03a58] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <p className="text-sm text-gray-400 mb-3">
+                    Use the titles and artists from your{" "}
+                    <strong>{songs.length}</strong> songs to generate a unique
+                    cover art (requires server-side AI).
+                  </p>
+                  <button
+                    onClick={generatePlaylistCover}
+                    disabled={generatingCover || uploadingCover}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#fa4565] hover:bg-[#e03a58] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     {generatingCover ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
