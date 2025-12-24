@@ -22,9 +22,10 @@ export const PlayerProvider = ({ children }) => {
   const midRef = useRef(null);
   const trebleRef = useRef(null);
   const compressorRef = useRef(null);
-  const stereoRef = useRef(null);
   const gainRef = useRef(null);
+  const stereoRef = useRef(null);
 
+  /* ================= STATE ================= */
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentSong, setCurrentSong] = useState(null);
@@ -35,24 +36,12 @@ export const PlayerProvider = ({ children }) => {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
 
-  /* ================= CORE PLAY ================= */
+  /* ================= BASIC PLAYER ================= */
 
-  const loadAndPlay = async (song, index = 0) => {
+  const loadAndPlay = (song, index = 0) => {
     if (!song) return;
-
     setCurrentIndex(index);
     setCurrentSong(song);
-
-    const audio = audioRef.current;
-    const ctx = audioCtxRef.current;
-
-    if (ctx && ctx.state === "suspended") {
-      await ctx.resume(); // 🔥 FIX autoplay block
-    }
-
-    setTimeout(() => {
-      audio?.play().catch(() => {});
-    }, 120);
   };
 
   const playSong = (song, index, list = []) => {
@@ -63,14 +52,17 @@ export const PlayerProvider = ({ children }) => {
   const togglePlay = async () => {
     const audio = audioRef.current;
     const ctx = audioCtxRef.current;
-
     if (!audio) return;
 
     if (ctx && ctx.state === "suspended") {
       await ctx.resume();
     }
 
-    isPlaying ? audio.pause() : audio.play().catch(() => {});
+    if (audio.paused) {
+      await audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
   };
 
   const playNext = () => {
@@ -98,12 +90,12 @@ export const PlayerProvider = ({ children }) => {
 
   const changeVolume = (val) => {
     setVolume(val);
-    if (!gainRef.current) return;
-
-    const ctx = audioCtxRef.current;
-    const now = ctx.currentTime;
-    gainRef.current.gain.cancelScheduledValues(now);
-    gainRef.current.gain.linearRampToValueAtTime(val, now + 0.15);
+    if (gainRef.current && audioCtxRef.current) {
+      const ctx = audioCtxRef.current;
+      const now = ctx.currentTime;
+      gainRef.current.gain.cancelScheduledValues(now);
+      gainRef.current.gain.linearRampToValueAtTime(val, now + 0.15);
+    }
   };
 
   /* ================= AUDIO EVENTS ================= */
@@ -145,9 +137,11 @@ export const PlayerProvider = ({ children }) => {
     audio.src = currentSong.audio_url;
     audio.crossOrigin = "anonymous";
     audio.load();
+
+    audio.play().catch(() => {});
   }, [currentSong]);
 
-  /* ================= AUDIO CONTEXT ================= */
+  /* ================= AUDIO CONTEXT (ONCE) ================= */
 
   useEffect(() => {
     if (!audioRef.current || audioCtxRef.current) return;
@@ -159,7 +153,6 @@ export const PlayerProvider = ({ children }) => {
     const source = ctx.createMediaElementSource(audioRef.current);
     sourceRef.current = source;
 
-    /* 🎚 EQ */
     const bass = ctx.createBiquadFilter();
     bass.type = "lowshelf";
     bass.frequency.value = 120;
@@ -176,19 +169,18 @@ export const PlayerProvider = ({ children }) => {
     treble.frequency.value = 9000;
     treble.gain.value = 0;
 
-    /* 🎧 COMPRESSOR (VOICE STABLE) */
     const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -20;
+    compressor.threshold.value = -18;
     compressor.knee.value = 24;
     compressor.ratio.value = 2.4;
-    compressor.attack.value = 0.1;   // smooth vocals
+    compressor.attack.value = 0.08; // 🎤 stable voice
     compressor.release.value = 0.45;
 
     const gain = ctx.createGain();
     gain.gain.value = volume;
 
     const stereo = ctx.createStereoPanner();
-    stereo.pan.value = 0.08; // Atmos-like widen
+    stereo.pan.value = 0.1;
 
     source
       .connect(bass)
@@ -203,25 +195,41 @@ export const PlayerProvider = ({ children }) => {
     midRef.current = mid;
     trebleRef.current = treble;
     compressorRef.current = compressor;
-    stereoRef.current = stereo;
     gainRef.current = gain;
+    stereoRef.current = stereo;
 
-    /* 🎧 AUTO SAFE SMOOTH START */
-    const smooth = (node, val, t = 0.25) => {
+    const smooth = (node, val, time = 0.25) => {
       const now = ctx.currentTime;
       node.gain.cancelScheduledValues(now);
-      node.gain.setValueAtTime(node.gain.value, now);
-      node.gain.linearRampToValueAtTime(val, now + t);
+      node.gain.linearRampToValueAtTime(val, now + time);
     };
 
     audioRef.current.addEventListener("playing", () => {
-      smooth(bass, 3.2);
-      smooth(mid, 2.4);
-      smooth(treble, 1.7);
+      smooth(bass, 3.5);
+      smooth(mid, 2.5);
+      smooth(treble, 1.8);
     });
   }, []);
 
-  /* ================= MEDIA SESSION ================= */
+  /* ================= MEDIA SESSION (HEADSET FIX) ================= */
+
+  useEffect(() => {
+    if (!navigator.mediaSession) return;
+
+    navigator.mediaSession.setActionHandler("play", async () => {
+      if (audioCtxRef.current?.state === "suspended") {
+        await audioCtxRef.current.resume();
+      }
+      audioRef.current?.play();
+    });
+
+    navigator.mediaSession.setActionHandler("pause", () => {
+      audioRef.current?.pause();
+    });
+
+    navigator.mediaSession.setActionHandler("previoustrack", playPrev);
+    navigator.mediaSession.setActionHandler("nexttrack", playNext);
+  }, []);
 
   useEffect(() => {
     if (!navigator.mediaSession || !currentSong) return;
@@ -237,12 +245,14 @@ export const PlayerProvider = ({ children }) => {
         },
       ],
     });
-
-    navigator.mediaSession.setActionHandler("play", togglePlay);
-    navigator.mediaSession.setActionHandler("pause", togglePlay);
-    navigator.mediaSession.setActionHandler("previoustrack", playPrev);
-    navigator.mediaSession.setActionHandler("nexttrack", playNext);
   }, [currentSong]);
+
+  useEffect(() => {
+    if (!navigator.mediaSession) return;
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  }, [isPlaying]);
+
+  /* ================= PROVIDER ================= */
 
   return (
     <PlayerContext.Provider
