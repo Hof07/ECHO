@@ -14,15 +14,16 @@ export const usePlayer = () => useContext(PlayerContext);
 export const PlayerProvider = ({ children }) => {
   const audioRef = useRef(null);
 
-  // 🎧 AUDIO ENHANCEMENT REFS
+  /* ================= AUDIO ENGINE ================= */
   const audioCtxRef = useRef(null);
   const sourceRef = useRef(null);
+
   const bassRef = useRef(null);
-  const midRef = useRef(null);                 // ✅ ADDED
+  const midRef = useRef(null);
   const trebleRef = useRef(null);
-  const compressorRef = useRef(null);          // ✅ ADDED
+  const compressorRef = useRef(null);
   const stereoRef = useRef(null);
-  const isEnhancedRef = useRef(false);
+  const gainRef = useRef(null);
 
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -33,9 +34,9 @@ export const PlayerProvider = ({ children }) => {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [playbackRate, setPlaybackRate] = useState(1.0);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
-  // ---------------- BASIC PLAYER LOGIC ----------------
+  /* ================= BASIC PLAYER ================= */
 
   const loadAndPlay = (song, index = 0) => {
     if (!song) return;
@@ -44,9 +45,7 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const playSong = (song, index, list = []) => {
-    if (Array.isArray(list) && list.length) {
-      setPlaylist(list);
-    }
+    if (list?.length) setPlaylist(list);
     loadAndPlay(song, index);
   };
 
@@ -54,231 +53,150 @@ export const PlayerProvider = ({ children }) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      try {
-        await audio.play();
-      } catch {
-        setIsPlaying(false);
-      }
-    }
+    if (isPlaying) audio.pause();
+    else await audio.play();
   };
 
   const playNext = () => {
     if (!playlist.length) return;
-    const nextIndex = (currentIndex + 1) % playlist.length;
-    loadAndPlay(playlist[nextIndex], nextIndex);
+    loadAndPlay(playlist[(currentIndex + 1) % playlist.length], (currentIndex + 1) % playlist.length);
   };
 
   const playPrev = () => {
     if (!playlist.length) return;
-    const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-    loadAndPlay(playlist[prevIndex], prevIndex);
+    loadAndPlay(
+      playlist[(currentIndex - 1 + playlist.length) % playlist.length],
+      (currentIndex - 1 + playlist.length) % playlist.length
+    );
   };
 
   const seekTo = (time) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = time;
-    setProgress(time);
+    if (audioRef.current) audioRef.current.currentTime = time;
   };
 
   const toggleLoop = () => {
-    setIsLoop((s) => {
-      const next = !s;
-      if (audioRef.current) audioRef.current.loop = next;
-      return next;
+    setIsLoop((l) => {
+      if (audioRef.current) audioRef.current.loop = !l;
+      return !l;
     });
   };
 
   const changeVolume = (val) => {
     setVolume(val);
-    if (audioRef.current) audioRef.current.volume = val;
+    if (gainRef.current) {
+      const ctx = audioCtxRef.current;
+      const now = ctx.currentTime;
+      gainRef.current.gain.cancelScheduledValues(now);
+      gainRef.current.gain.linearRampToValueAtTime(val, now + 0.05);
+    }
   };
 
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.playbackRate = playbackRate;
-    }
-  }, [playbackRate]);
-
-  // ---------------- AUDIO EVENTS ----------------
+  /* ================= AUDIO EVENTS ================= */
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    audio.addEventListener("play", () => setIsPlaying(true));
+    audio.addEventListener("pause", () => setIsPlaying(false));
+    audio.addEventListener("timeupdate", () => setProgress(audio.currentTime));
+    audio.addEventListener("loadedmetadata", () => setDuration(audio.duration || 0));
+    audio.addEventListener("ended", () => !audio.loop && playNext());
 
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-
-    return () => {
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-    };
+    return () => audio.replaceWith(audio.cloneNode(true));
   }, []);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onTimeUpdate = () => setProgress(audio.currentTime);
-    const onLoadedMeta = () => setDuration(audio.duration || 0);
-    const onEnded = () => {
-      if (!audio.loop) setTimeout(playNext, 50);
-    };
-
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMeta);
-    audio.addEventListener("ended", onEnded);
-
-    return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMeta);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, [playlist, currentIndex, isLoop]);
-
-  // ---------------- LOAD SONG ----------------
+  /* ================= LOAD SONG ================= */
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!currentSong) {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      setIsPlaying(false);
-      setProgress(0);
-      setDuration(0);
-      return;
-    }
+    if (!currentSong) return;
 
-    audio.pause();
     audio.src = currentSong.audio_url;
     audio.crossOrigin = "anonymous";
     audio.load();
-
-    const handleLoaded = async () => {
-      try {
-        await audio.play();
-      } catch {
-        setIsPlaying(false);
-      }
-    };
-
-    audio.addEventListener("loadeddata", handleLoaded);
-    return () => audio.removeEventListener("loadeddata", handleLoaded);
+    audio.play().catch(() => {});
   }, [currentSong]);
 
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-
-  // ---------------- 🎧 HEADPHONE + SPATIAL + NORMALIZATION ----------------
+  /* ================= AUDIO CONTEXT (ONCE) ================= */
 
   useEffect(() => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || audioCtxRef.current) return;
 
-    const AudioContext =
-      window.AudioContext || window.webkitAudioContext;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
+    audioCtxRef.current = ctx;
 
-    const audioCtx = new AudioContext();
-    audioCtxRef.current = audioCtx;
-
-    const source = audioCtx.createMediaElementSource(audioRef.current);
+    const source = ctx.createMediaElementSource(audioRef.current);
     sourceRef.current = source;
 
-    const bass = audioCtx.createBiquadFilter();
+    const bass = ctx.createBiquadFilter();
     bass.type = "lowshelf";
     bass.frequency.value = 120;
-    bass.gain.value = 6;
 
-    const mid = audioCtx.createBiquadFilter();
+    const mid = ctx.createBiquadFilter();
     mid.type = "peaking";
-    mid.frequency.value = 1500;
+    mid.frequency.value = 1800;
     mid.Q.value = 1;
-    mid.gain.value = 2;
 
-    const treble = audioCtx.createBiquadFilter();
+    const treble = ctx.createBiquadFilter();
     treble.type = "highshelf";
-    treble.frequency.value = 8000;
-    treble.gain.value = 4;
+    treble.frequency.value = 9000;
 
-    const compressor = audioCtx.createDynamicsCompressor();
-    compressor.threshold.value = -18;
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -16;
     compressor.knee.value = 30;
-    compressor.ratio.value = 4;
-    compressor.attack.value = 0.003;
-    compressor.release.value = 0.25;
+    compressor.ratio.value = 3;
+    compressor.attack.value = 0.02;     // ✅ FIXED
+    compressor.release.value = 0.35;
 
-    const stereo = audioCtx.createStereoPanner();
-    stereo.pan.value = 0;
+    const gain = ctx.createGain();
+    gain.gain.value = volume;
+
+    const stereo = ctx.createStereoPanner();
+    stereo.pan.value = 0.12;
+
+    source
+      .connect(bass)
+      .connect(mid)
+      .connect(treble)
+      .connect(compressor)
+      .connect(gain)
+      .connect(stereo)
+      .connect(ctx.destination);
 
     bassRef.current = bass;
     midRef.current = mid;
     trebleRef.current = treble;
     compressorRef.current = compressor;
     stereoRef.current = stereo;
+    gainRef.current = gain;
 
-    source.connect(audioCtx.destination);
-
-    audioRef.current.addEventListener("play", () => {
-      audioCtx.resume();
-    });
-
-    return () => {
-      source.disconnect();
-      audioCtx.close();
+    /* ===== AUTO SAFE ENHANCEMENT ===== */
+    const smooth = (node, val) => {
+      const now = ctx.currentTime;
+      node.gain.cancelScheduledValues(now);
+      node.gain.linearRampToValueAtTime(val, now + 0.08);
     };
+
+    audioRef.current.addEventListener("canplay", () => {
+      smooth(bass, 4);
+      smooth(mid, 3);
+      smooth(treble, 2);
+    });
   }, []);
 
-  const enableHeadphoneEnhancement = () => {
-    if (!sourceRef.current) return;
-
-    sourceRef.current.disconnect();
-    sourceRef.current
-      .connect(bassRef.current)
-      .connect(midRef.current)
-      .connect(trebleRef.current)
-      .connect(compressorRef.current)
-      .connect(stereoRef.current)
-      .connect(audioCtxRef.current.destination);
-
-    isEnhancedRef.current = true;
-  };
-
-  const disableHeadphoneEnhancement = () => {
-    if (!sourceRef.current) return;
-    sourceRef.current.disconnect();
-    sourceRef.current.connect(audioCtxRef.current.destination);
-    isEnhancedRef.current = false;
-  };
-
-  // 🔁 AUTO ENABLE ON EVERY SONG
-  useEffect(() => {
-    enableHeadphoneEnhancement();
-  }, [currentSong]);
-
-  // ---------------- MEDIA SESSION ----------------
+  /* ================= MEDIA SESSION ================= */
 
   useEffect(() => {
     if (!navigator.mediaSession || !currentSong) return;
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentSong.title || "Unknown Title",
-      artist: currentSong.artist_name || "Unknown Artist",
-      album: currentSong.album || "",
-      artwork: [
-        {
-          src: currentSong.cover_url,
-          sizes: "512x512",
-          type: "image/png",
-        },
-      ],
+      title: currentSong.title,
+      artist: currentSong.artist_name,
+      artwork: [{ src: currentSong.cover_url, sizes: "512x512", type: "image/png" }],
     });
 
     navigator.mediaSession.setActionHandler("play", () => audioRef.current?.play());
@@ -287,22 +205,18 @@ export const PlayerProvider = ({ children }) => {
     navigator.mediaSession.setActionHandler("nexttrack", playNext);
   }, [currentSong]);
 
-  const currentSongId = currentSong?.id || null;
-
   return (
     <PlayerContext.Provider
       value={{
         playlist,
         currentIndex,
         currentSong,
-        currentSongId,
         isPlaying,
         progress,
         duration,
         isLoop,
         volume,
         playbackRate,
-        setPlaybackRate,
         playSong,
         togglePlay,
         playNext,
@@ -310,12 +224,10 @@ export const PlayerProvider = ({ children }) => {
         seekTo,
         toggleLoop,
         changeVolume,
-        enableHeadphoneEnhancement,
-        disableHeadphoneEnhancement,
       }}
     >
       {children}
-      <audio ref={audioRef} />
+      <audio ref={audioRef} preload="auto" />
     </PlayerContext.Provider>
   );
 };
