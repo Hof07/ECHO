@@ -35,12 +35,24 @@ export const PlayerProvider = ({ children }) => {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
 
-  /* ================= BASIC PLAYER ================= */
+  /* ================= CORE PLAY ================= */
 
-  const loadAndPlay = (song, index = 0) => {
+  const loadAndPlay = async (song, index = 0) => {
     if (!song) return;
+
     setCurrentIndex(index);
     setCurrentSong(song);
+
+    const audio = audioRef.current;
+    const ctx = audioCtxRef.current;
+
+    if (ctx && ctx.state === "suspended") {
+      await ctx.resume(); // 🔥 FIX autoplay block
+    }
+
+    setTimeout(() => {
+      audio?.play().catch(() => {});
+    }, 120);
   };
 
   const playSong = (song, index, list = []) => {
@@ -55,27 +67,22 @@ export const PlayerProvider = ({ children }) => {
     if (!audio) return;
 
     if (ctx && ctx.state === "suspended") {
-      await ctx.resume(); // ✅ CRITICAL FIX
+      await ctx.resume();
     }
 
-    if (isPlaying) audio.pause();
-    else await audio.play();
+    isPlaying ? audio.pause() : audio.play().catch(() => {});
   };
 
   const playNext = () => {
     if (!playlist.length) return;
-    loadAndPlay(
-      playlist[(currentIndex + 1) % playlist.length],
-      (currentIndex + 1) % playlist.length
-    );
+    const next = (currentIndex + 1) % playlist.length;
+    loadAndPlay(playlist[next], next);
   };
 
   const playPrev = () => {
     if (!playlist.length) return;
-    loadAndPlay(
-      playlist[(currentIndex - 1 + playlist.length) % playlist.length],
-      (currentIndex - 1 + playlist.length) % playlist.length
-    );
+    const prev = (currentIndex - 1 + playlist.length) % playlist.length;
+    loadAndPlay(playlist[prev], prev);
   };
 
   const seekTo = (time) => {
@@ -91,12 +98,12 @@ export const PlayerProvider = ({ children }) => {
 
   const changeVolume = (val) => {
     setVolume(val);
-    if (gainRef.current) {
-      const ctx = audioCtxRef.current;
-      const now = ctx.currentTime;
-      gainRef.current.gain.cancelScheduledValues(now);
-      gainRef.current.gain.linearRampToValueAtTime(val, now + 0.1);
-    }
+    if (!gainRef.current) return;
+
+    const ctx = audioCtxRef.current;
+    const now = ctx.currentTime;
+    gainRef.current.gain.cancelScheduledValues(now);
+    gainRef.current.gain.linearRampToValueAtTime(val, now + 0.15);
   };
 
   /* ================= AUDIO EVENTS ================= */
@@ -109,7 +116,9 @@ export const PlayerProvider = ({ children }) => {
     const onPause = () => setIsPlaying(false);
     const onTime = () => setProgress(audio.currentTime);
     const onMeta = () => setDuration(audio.duration || 0);
-    const onEnd = () => !audio.loop && playNext();
+    const onEnd = () => {
+      if (!audio.loop) playNext(); // ✅ AUTO NEXT FIX
+    };
 
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
@@ -124,7 +133,7 @@ export const PlayerProvider = ({ children }) => {
       audio.removeEventListener("loadedmetadata", onMeta);
       audio.removeEventListener("ended", onEnd);
     };
-  }, []);
+  }, [currentIndex, playlist]);
 
   /* ================= LOAD SONG ================= */
 
@@ -132,10 +141,10 @@ export const PlayerProvider = ({ children }) => {
     const audio = audioRef.current;
     if (!audio || !currentSong) return;
 
+    audio.pause();
     audio.src = currentSong.audio_url;
     audio.crossOrigin = "anonymous";
     audio.load();
-    audio.play().catch(() => {});
   }, [currentSong]);
 
   /* ================= AUDIO CONTEXT ================= */
@@ -150,10 +159,11 @@ export const PlayerProvider = ({ children }) => {
     const source = ctx.createMediaElementSource(audioRef.current);
     sourceRef.current = source;
 
+    /* 🎚 EQ */
     const bass = ctx.createBiquadFilter();
     bass.type = "lowshelf";
     bass.frequency.value = 120;
-    bass.gain.value = 0; // ✅ start safe
+    bass.gain.value = 0;
 
     const mid = ctx.createBiquadFilter();
     mid.type = "peaking";
@@ -166,18 +176,19 @@ export const PlayerProvider = ({ children }) => {
     treble.frequency.value = 9000;
     treble.gain.value = 0;
 
+    /* 🎧 COMPRESSOR (VOICE STABLE) */
     const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -18;
+    compressor.threshold.value = -20;
     compressor.knee.value = 24;
-    compressor.ratio.value = 2.5;
-    compressor.attack.value = 0.08;   // ✅ smoother vocals
-    compressor.release.value = 0.4;
+    compressor.ratio.value = 2.4;
+    compressor.attack.value = 0.1;   // smooth vocals
+    compressor.release.value = 0.45;
 
     const gain = ctx.createGain();
     gain.gain.value = volume;
 
     const stereo = ctx.createStereoPanner();
-    stereo.pan.value = 0.1;
+    stereo.pan.value = 0.08; // Atmos-like widen
 
     source
       .connect(bass)
@@ -195,17 +206,18 @@ export const PlayerProvider = ({ children }) => {
     stereoRef.current = stereo;
     gainRef.current = gain;
 
-    const smooth = (node, val, delay = 0.2) => {
+    /* 🎧 AUTO SAFE SMOOTH START */
+    const smooth = (node, val, t = 0.25) => {
       const now = ctx.currentTime;
       node.gain.cancelScheduledValues(now);
       node.gain.setValueAtTime(node.gain.value, now);
-      node.gain.linearRampToValueAtTime(val, now + delay);
+      node.gain.linearRampToValueAtTime(val, now + t);
     };
 
     audioRef.current.addEventListener("playing", () => {
-      smooth(bass, 3.5);
-      smooth(mid, 2.5);
-      smooth(treble, 1.8);
+      smooth(bass, 3.2);
+      smooth(mid, 2.4);
+      smooth(treble, 1.7);
     });
   }, []);
 
