@@ -100,7 +100,7 @@ function PlaylistManager({ userMailId }) {
 
     // Also need to delete associated songs from the playlist_songs table if applicable
     // Not explicitly shown here, but crucial for database integrity.
-    
+
     const { error } = await supabase.from("playlists").delete().eq("id", id);
 
     if (error) {
@@ -114,7 +114,7 @@ function PlaylistManager({ userMailId }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between border-t border-[#2a2a2a] pt-4">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <Library size={20} className="text-[#fa4565]"/> Your Playlists
+          <Library size={20} className="text-[#fa4565]" /> Your Playlists
         </h3>
         <button
           className="p-2 cursor-pointer text-gray-400 hover:bg-[#fa4565] rounded-full hover:text-black transition"
@@ -139,8 +139,8 @@ function PlaylistManager({ userMailId }) {
       {userMailId && playlists.length > 0 && (
         <div className="flex flex-col gap-2">
           {playlists.map((p) => (
-            <div 
-              key={p.id} 
+            <div
+              key={p.id}
               className={`relative group ${activeMenuId === p.id ? "z-50" : "z-0"}`}
             >
               <Link
@@ -150,14 +150,14 @@ function PlaylistManager({ userMailId }) {
               >
                 <div className="relative h-10 w-10 min-w-[2.5rem] rounded-md overflow-hidden bg-gray-800">
                   {p.image_url ? (
-                    <img 
+                    <img
                       loading="lazy"
-                      src={p.image_url} 
-                      alt={p.name} 
-                      className="h-full w-full object-cover" 
+                      src={p.image_url}
+                      alt={p.name}
+                      className="h-full w-full object-cover"
                     />
                   ) : (
-                    <Music size={16} className="text-gray-400 m-auto h-full" /> 
+                    <Music size={16} className="text-gray-400 m-auto h-full" />
                   )}
                 </div>
                 <div className="flex flex-col overflow-hidden">
@@ -175,9 +175,9 @@ function PlaylistManager({ userMailId }) {
                   }}
                   className={`
                     p-2 rounded-full transition cursor-pointer
-                    ${activeMenuId === p.id 
-                        ? "text-white opacity-100" 
-                        : "text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-black/50"
+                    ${activeMenuId === p.id
+                      ? "text-white opacity-100"
+                      : "text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-black/50"
                     }
                   `}
                 >
@@ -185,11 +185,11 @@ function PlaylistManager({ userMailId }) {
                 </button>
 
                 {activeMenuId === p.id && (
-                  <div 
+                  <div
                     className="absolute right-0 top-10 w-48 bg-[#222] border border-gray-700 rounded-lg shadow-2xl overflow-hidden flex flex-col py-1 z-[100]"
-                    onClick={(e) => e.stopPropagation()} 
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <button 
+                    <button
                       onClick={() => {
                         setPlaylistIdToAdd(p.id);
                         setActiveMenuId(null);
@@ -198,8 +198,8 @@ function PlaylistManager({ userMailId }) {
                     >
                       <ListPlus size={16} /> Add Song
                     </button>
-                    
-                    <button 
+
+                    <button
                       onClick={() => deletePlaylist(p.id)}
                       className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-900/20 text-left w-full cursor-pointer"
                     >
@@ -212,20 +212,20 @@ function PlaylistManager({ userMailId }) {
           ))}
         </div>
       )}
-      
+
       {/* 🟢 MODALS ARE NOW UNCOMMENTED AND READY TO RENDER */}
       {showCreateModal && (
-        <CreatePlaylistModal 
-          close={() => setShowCreateModal(false)} 
-          refresh={() => getPlaylists(userMailId)} 
+        <CreatePlaylistModal
+          close={() => setShowCreateModal(false)}
+          refresh={() => getPlaylists(userMailId)}
           createdBy={userMailId}
         />
       )}
-      
+
       {playlistIdToAdd && (
-        <AddSongToPlaylistModal 
-          playlistId={playlistIdToAdd} 
-          close={() => setPlaylistIdToAdd(null)} 
+        <AddSongToPlaylistModal
+          playlistId={playlistIdToAdd}
+          close={() => setPlaylistIdToAdd(null)}
         />
       )}
     </div>
@@ -329,7 +329,7 @@ function SettingsPanel({ open, onClose, user }) {
               </>
             ) : displayUser.img ? (
               <img
-              loading="lazy"
+                loading="lazy"
                 src={displayUser.img}
                 className="w-12 h-12 rounded-full object-cover"
               />
@@ -364,25 +364,25 @@ function SettingsPanel({ open, onClose, user }) {
 
         {/* MAIN SETTINGS CONTENT AREA (Playlists & Options) */}
         <div className="flex-1 space-y-6 pt-4 overflow-y-auto custom-scroll">
-          
+
           {/* PLAYLIST MANAGER SECTION */}
           <PlaylistManager userMailId={displayUser.email} />
 
           {/* GENERAL OPTIONS */}
           <ul className="space-y-2 border-t border-[#2a2a2a] pt-4">
             {[{ icon: User2, label: "My Account" },
-              { icon: Palette, label: "Theme" },
-              { icon: Globe, label: "Language" },
-              { icon: ShieldCheck, label: "Security" }].map(
-                ({ icon: Icon, label }) => (
-                  <div
-                    key={label}
-                    className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"
-                  >
-                    <Icon size={20} /> {label}
-                  </div>
-                )
-              )}
+            { icon: Palette, label: "Theme" },
+            { icon: Globe, label: "Language" },
+            { icon: ShieldCheck, label: "Security" }].map(
+              ({ icon: Icon, label }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"
+                >
+                  <Icon size={20} /> {label}
+                </div>
+              )
+            )}
           </ul>
         </div>
 
@@ -420,14 +420,14 @@ export default function Header() {
   useEffect(() => {
     async function loadUser() {
       try {
-          // Use the getToken API to fetch the user session data
-          const res = await fetch("/api/getToken");
-          const tokenData = await res.json().catch(() => null);
-          if(tokenData?.user) {
-              setUser(tokenData.user);
-          }
-      } catch(e) {
-          console.error("Error fetching full user data:", e);
+        // Use the getToken API to fetch the user session data
+        const res = await fetch("/api/getToken");
+        const tokenData = await res.json().catch(() => null);
+        if (tokenData?.user) {
+          setUser(tokenData.user);
+        }
+      } catch (e) {
+        console.error("Error fetching full user data:", e);
       }
     }
     loadUser();
@@ -489,7 +489,7 @@ export default function Header() {
               className="w-full bg-[#161616] px-5 py-2.5 rounded-full text-sm text-gray-200 placeholder-gray-500 
               focus:outline-none focus:ring-2 focus:ring-[#fa4565]"
               // Hide popup when focus is lost (with a slight delay)
-              onBlur={() => setTimeout(() => setShowPopup(false), 200)} 
+              onBlur={() => setTimeout(() => setShowPopup(false), 200)}
             />
 
             <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -532,7 +532,7 @@ export default function Header() {
             >
               {user?.img ? (
                 <img
-                loading="lazy"
+                  loading="lazy"
                   src={user.img}
                   className="w-10 h-10 rounded-full border object-cover hover:scale-110 transition"
                   alt="profile"
