@@ -22,6 +22,7 @@ function SongsSection() {
       const { data, error } = await supabase
         .from("songs")
         .select("id,title,cover_url,duration,audio_url,artist_name")
+        .eq("isOther", false)
         .order("title", { ascending: true });
 
       if (!error) setSongs(data);
@@ -115,7 +116,6 @@ transition-all duration-200 select-none ${
 
                   <div className="flex items-center gap-3">
                     <img
-                    
                       src={song.cover_url}
                       alt={song.title}
                       loading="lazy"
@@ -167,7 +167,7 @@ transition-all duration-200 select-none ${
                 {/* Cover */}
                 <div className="relative rounded-lg overflow-hidden">
                   <img
-                  loading="lazy"
+                    loading="lazy"
                     src={song.cover_url}
                     className="w-full aspect-square object-cover"
                   />

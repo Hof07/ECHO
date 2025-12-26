@@ -545,10 +545,10 @@ export default function MusicPlayer() {
             <button
               onClick={toggleEnhancedAudio}
               title="Enhanced Audio (Dolby + Bass)"
-              className={`p-2 rounded-full flex flex-col items-center gap-1 transition-all duration-500 ${
+              className={`p-2 rounded-full flex flex-col cursor-pointer items-center gap-1 transition-all duration-500 ${
                 isEnhanced
                   ? "bg-[#fa4565]/20 text-[#fa4565]  scale-110"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  : "text-gray-400 hover:text-white "
               }`}
             >
               <DolbySvg active={isEnhanced} />

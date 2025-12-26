@@ -19,6 +19,8 @@ import {
   ListPlus,
   Library,
   Hourglass,
+  User,
+  ListMusic,
 } from "lucide-react";
 
 // Ensure these paths and the client are correctly configured for your environment
@@ -371,7 +373,9 @@ function SettingsPanel({ open, onClose, user }) {
           <ul className="space-y-2 border-t border-[#2a2a2a] pt-4">
             {[
               { icon: User2, label: "My Account" },
-              { icon: Palette, label: "Theme" },
+              { icon: ListMusic, label: "Public Playlist" , href: "/playlists" },
+
+              
               { icon: Hourglass, label: "Time Spended", href: "/duration" },
               { icon: ShieldCheck, label: "Security" },
             ].map(({ icon: Icon, label, href }) =>

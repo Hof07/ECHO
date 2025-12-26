@@ -217,6 +217,7 @@ const styles = {
   },
   cardMetadata: {
     fontSize: '0.75em',
+    
     color: '#6A6A6A',
     marginTop: '8px',
     fontWeight: 500,
