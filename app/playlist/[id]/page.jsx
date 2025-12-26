@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 // Ensure this path is correct for your Supabase client setup
 import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 import {
   Clock,
   Play,
@@ -42,6 +43,7 @@ export default function PlaylistPage() {
 
   // 1. STATE INITIALIZATION
   const [playlist, setPlaylist] = useState(null);
+  const router = useRouter();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -335,7 +337,7 @@ export default function PlaylistPage() {
         >
           <div className="flex justify-between w-full items-center">
             <div className="flex items-center gap-3">
-              <a href="/music" className="text-white hover:text-[#fa4565]">
+              <buttom onClick={() => router.back()} className="text-white hover:text-[#fa4565]">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -350,7 +352,7 @@ export default function PlaylistPage() {
                     d="M15.75 19.5L8.25 12l7.5-7.5"
                   />
                 </svg>
-              </a>
+              </buttom>
             </div>
 
             <div className="flex items-center gap-4">

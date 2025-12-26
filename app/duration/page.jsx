@@ -2,6 +2,7 @@
 
 import { usePlayer } from "../music/context/PlayerContext";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -16,6 +17,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 export default function DurationPage() {
   const { listenedSeconds } = usePlayer();
   const [mounted, setMounted] = useState(false);
+  const router = useRouter(); // Initialize the router
 
   useEffect(() => setMounted(true), []);
 
@@ -24,7 +26,6 @@ export default function DurationPage() {
   const todayIndex = new Date().getDay();
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  // Logic: Values are in minutes. 
   const rawChartData = [0, 0, 0, 0, 0, 0, 0]; 
   rawChartData[todayIndex] = Math.floor(listenedSeconds / 60);
 
@@ -64,8 +65,6 @@ export default function DurationPage() {
       y: { 
         display: false,
         beginAtZero: true,
-        // SCALE FIX: 24 hours = 1440 minutes. 
-        // This ensures the height grows relative to a full day.
         max: 1440 
       },
     },
@@ -100,7 +99,20 @@ export default function DurationPage() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h2 style={styles.headerTitle}>Dashboard</h2>
+        {/* Updated Header with Back Button */}
+        <div style={styles.headerContainer}>
+          <button 
+            onClick={() => router.back()} 
+            style={styles.backButton}
+            aria-label="Go back"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+          <h2 style={styles.headerTitle}>Dashboard</h2>
+          <div style={{ width: 40 }} /> {/* Spacer to keep title centered */}
+        </div>
         
         <div style={styles.mainBox}>
           <p style={styles.todayLabel}>Today's Activity</p>
@@ -129,8 +141,8 @@ const styles = {
     background: "#000",
     minHeight: "100vh",
     display: "flex",
-    alignItems: "center", // Vertically center the card
-    justifyContent: "center", // Horizontally center the card
+    alignItems: "center",
+    justifyContent: "center",
     padding: "20px",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   },
@@ -141,7 +153,27 @@ const styles = {
     display: "flex",
     flexDirection: "column",
   },
-  headerTitle: { fontSize: "24px", fontWeight: "600", textAlign: "center", marginBottom: "30px" },
+  headerContainer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "30px",
+    padding: "0 10px",
+  },
+  backButton: {
+    background: "#1c1c1e",
+    border: "none",
+    color: "white",
+    width: "40px",
+    height: "40px",
+    borderRadius: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    transition: "background 0.2s",
+  },
+  headerTitle: { fontSize: "24px", fontWeight: "600", margin: 0 },
   mainBox: {
     background: "#121214",
     borderRadius: "32px",
