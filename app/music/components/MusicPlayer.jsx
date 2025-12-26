@@ -21,6 +21,7 @@ import {
   // Shuffle, // Not used in the provided code
 } from "lucide-react";
 import SleepTimerModal from "./SleepTimerModal";
+import DolbySvg from "./DolbySvg";
 
 // --- UTILITY FUNCTION RE-DEFINITION ---
 const formatTime = (sec) => {
@@ -31,9 +32,7 @@ const formatTime = (sec) => {
     .padStart(2, "0");
   return `${m}:${s}`;
 };
-// -----------------------------------------------------------------------------
 
-// 🎶 FULLSCREEN PLAYER COMPONENT - STYLED TO MATCH IMAGE
 const FullScreenPlayer = ({
   currentSong,
   isPlaying,
@@ -128,7 +127,7 @@ const FullScreenPlayer = ({
       >
         {/* Album Artwork */}
         <img
-        loading="lazy"
+          loading="lazy"
           src={currentSong.cover_url}
           alt="cover"
           className="w-full aspect-square object-cover rounded-2xl mb-6 shadow-xl"
@@ -295,7 +294,9 @@ export default function MusicPlayer() {
       setPrevVolume(1.0);
     }
   }, [volume, isSleeperMode, prevVolume]);
+  const [isDolbyOn, setIsDolbyOn] = useState(false);
 
+  const { toggleEnhancedAudio, isEnhanced } = usePlayer();
   // Re-sync isSleeperMode if volume is programmatically set to 0.3 outside of this component
   useEffect(() => {
     if (volume === 0.3 && !isSleeperMode) {
@@ -344,7 +345,6 @@ export default function MusicPlayer() {
       playPrev();
     }
   };
-
   // HANDLER: toggleSleeperMode
   const toggleSleeperMode = () => {
     const newSleeperState = !isSleeperMode;
@@ -490,7 +490,7 @@ export default function MusicPlayer() {
           {/* 1. Song Info (Left) */}
           <div className="flex items-center gap-3 w-full sm:w-1/4 mb-3 sm:mb-0 order-1">
             <img
-            loading="lazy"
+              loading="lazy"
               src={currentSong.cover_url}
               alt="cover"
               className="w-12 h-12 rounded object-cover flex-shrink-0"
@@ -542,11 +542,19 @@ export default function MusicPlayer() {
 
           {/* 3. Special Controls (Right - Moved to order 2 on mobile, order 3 on desktop) */}
           <div className="flex items-center gap-2 w-full sm:w-1/4  justify-end relative mb-3 sm:mb-0 order-2 sm:order-3 ">
-            <button className="p-1 transition-colors cursor-pointer">
-              <MicVocal
-                className={`w-5 h-5 ${"text-gray-400 hover:text-white"}`}
-              />
+            <button
+              onClick={toggleEnhancedAudio}
+              title="Enhanced Audio (Dolby + Bass)"
+              className={`p-2 rounded-full flex flex-col items-center gap-1 transition-all duration-500 ${
+                isEnhanced
+                  ? "bg-[#fa4565]/20 text-[#fa4565]  scale-110"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <DolbySvg active={isEnhanced} />
+             
             </button>
+
             <button
               onClick={() => setIsTimerModalOpen(true)}
               title="Set Sleep Timer"
