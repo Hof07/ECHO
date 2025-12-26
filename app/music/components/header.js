@@ -300,9 +300,13 @@ function SettingsPanel({ open, onClose, user }) {
       )}
 
       <aside
-        className={`fixed top-0 right-0 h-full w-[500px] bg-[#0f0f0f] text-white 
-        shadow-xl z-[100] transform transition-transform duration-300 
-        ${open ? "translate-x-0" : "translate-x-full"} p-6 flex flex-col`}
+        className={`fixed top-0 right-0 h-full 
+    w-[330px] md:w-[500px]
+    bg-[#0f0f0f] text-white 
+    shadow-xl z-[100] 
+    transform transition-transform duration-300 
+    ${open ? "translate-x-0" : "translate-x-full"} 
+    p-6 flex flex-col`}
       >
         <div className="flex justify-between items-center pb-4 border-b border-[#1c1c1c]">
           <h2 className="text-xl font-bold">Settings</h2>
