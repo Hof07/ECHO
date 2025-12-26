@@ -13,14 +13,29 @@ export const usePlayer = () => useContext(PlayerContext);
 
 export const PlayerProvider = ({ children }) => {
   const audioRef = useRef(null);
+  // ADDED: Definition of lastTimeRef to prevent ReferenceError
+  const lastTimeRef = useRef(0);
 
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentSong, setCurrentSong] = useState(null);
 
+  const [listenedSeconds, setListenedSeconds] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("total_listened_time");
+      return saved ? parseFloat(saved) : 0;
+    }
+    return 0;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("total_listened_time", listenedSeconds.toString());
+  }, [listenedSeconds]);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoop, setIsLoop] = useState(false);
   const [progress, setProgress] = useState(0);
+
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1.0);
@@ -29,6 +44,8 @@ export const PlayerProvider = ({ children }) => {
     if (!song) return;
     setCurrentIndex(index);
     setCurrentSong(song);
+    // Reset the ref when a new song starts so the counter starts clean
+    lastTimeRef.current = 0;
   };
 
   const playSong = (song, index, list = []) => {
@@ -75,6 +92,8 @@ export const PlayerProvider = ({ children }) => {
     if (!audioRef.current) return;
     audioRef.current.currentTime = time;
     setProgress(time);
+    // Sync the ref during seeking to avoid counting the "jump" as listening time
+    lastTimeRef.current = time;
   };
 
   const toggleLoop = () => {
@@ -89,6 +108,27 @@ export const PlayerProvider = ({ children }) => {
     setVolume(val);
     if (audioRef.current) audioRef.current.volume = val;
   };
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const interval = setInterval(() => {
+      if (!audio.paused && !audio.ended) {
+        const current = audio.currentTime;
+
+        if (current > lastTimeRef.current) {
+          const diff = current - lastTimeRef.current;
+          if (diff < 2) {
+            setListenedSeconds((prev) => prev + diff);
+          }
+        }
+        lastTimeRef.current = current;
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync UI play/pause with audio element
   useEffect(() => {
@@ -178,20 +218,9 @@ export const PlayerProvider = ({ children }) => {
     });
   };
 
-  // Sync on duration load
   useEffect(() => {
     updatePlaybackState();
-  }, [duration]);
-
-  // Sync on progress change
-  useEffect(() => {
-    updatePlaybackState();
-  }, [progress]);
-
-  // Sync on play/pause
-  useEffect(() => {
-    updatePlaybackState();
-  }, [isPlaying]);
+  }, [duration, progress, isPlaying]);
 
   // Set metadata (artwork, title)
   useEffect(() => {
@@ -210,8 +239,12 @@ export const PlayerProvider = ({ children }) => {
       ],
     });
 
-    navigator.mediaSession.setActionHandler("play", () => audioRef.current?.play());
-    navigator.mediaSession.setActionHandler("pause", () => audioRef.current?.pause());
+    navigator.mediaSession.setActionHandler("play", () =>
+      audioRef.current?.play()
+    );
+    navigator.mediaSession.setActionHandler("pause", () =>
+      audioRef.current?.pause()
+    );
     navigator.mediaSession.setActionHandler("previoustrack", playPrev);
     navigator.mediaSession.setActionHandler("nexttrack", playNext);
 
@@ -241,6 +274,7 @@ export const PlayerProvider = ({ children }) => {
         volume,
         currentSongId,
         playbackRate,
+        listenedSeconds,
         setPlaybackRate,
         playSong,
         togglePlay,
@@ -255,4 +289,4 @@ export const PlayerProvider = ({ children }) => {
       <audio ref={audioRef} />
     </PlayerContext.Provider>
   );
-};  
+};

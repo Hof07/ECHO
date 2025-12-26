@@ -18,6 +18,7 @@ import {
   Trash2,
   ListPlus,
   Library,
+  Hourglass,
 } from "lucide-react";
 
 // Ensure these paths and the client are correctly configured for your environment
@@ -28,9 +29,7 @@ import AddSongToPlaylistModal from "../components/AddSongToPlaylistModal";
 
 // ---------------- UTILITY FUNCTION ----------------
 /**
- * Fetches the user's email ID from the server API.
- * NOTE: This function is not used inside Header/SettingsPanel but is kept for completeness
- * if it were needed outside of the main component's useEffect.
+
  * @returns {Promise<string | null>} The user's email or null.
  */
 const getMailId = async () => {
@@ -49,10 +48,6 @@ const getMailId = async () => {
   }
 };
 
-// ---------------- PLAYLIST MANAGER COMPONENT ----------------
-/**
- * Displays and manages the user's playlists within the Settings Panel.
- */
 function PlaylistManager({ userMailId }) {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +58,7 @@ function PlaylistManager({ userMailId }) {
   // Function to fetch playlists, filtered by userMailId
   const getPlaylists = useCallback(async (mailId) => {
     setLoading(true);
-    let query = supabase.from("playlists").select("id, name, image_url"); // Select only necessary fields
+    let query = supabase.from("playlists").select("id, name, image_url");
 
     if (mailId) {
       query = query.eq("created_by", mailId);
@@ -305,7 +300,7 @@ function SettingsPanel({ open, onClose, user }) {
       )}
 
       <aside
-        className={`fixed top-0 right-0 h-full w-[330px] bg-[#0f0f0f] text-white 
+        className={`fixed top-0 right-0 h-full w-[500px] bg-[#0f0f0f] text-white 
         shadow-xl z-[100] transform transition-transform duration-300 
         ${open ? "translate-x-0" : "translate-x-full"} p-6 flex flex-col`}
       >
@@ -370,11 +365,21 @@ function SettingsPanel({ open, onClose, user }) {
 
           {/* GENERAL OPTIONS */}
           <ul className="space-y-2 border-t border-[#2a2a2a] pt-4">
-            {[{ icon: User2, label: "My Account" },
-            { icon: Palette, label: "Theme" },
-            { icon: Globe, label: "Language" },
-            { icon: ShieldCheck, label: "Security" }].map(
-              ({ icon: Icon, label }) => (
+            {[
+              { icon: User2, label: "My Account" },
+              { icon: Palette, label: "Theme" },
+              { icon: Hourglass, label: "Time Spended", href: "/duration" },
+              { icon: ShieldCheck, label: "Security" },
+            ].map(({ icon: Icon, label, href }) =>
+              href ? (
+                <Link
+                  key={label}
+                  href={href}
+                  className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"
+                >
+                  <Icon size={20} /> {label}
+                </Link>
+              ) : (
                 <div
                   key={label}
                   className="flex items-center gap-3 p-3 rounded-lg text-sm text-gray-300 hover:bg-[#1c1c1c] cursor-pointer"

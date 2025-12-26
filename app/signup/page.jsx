@@ -190,7 +190,7 @@ export default function SignupPage() {
         id: userId,
         email: form.email,
         username: form.username,
-        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+        exp: Math.floor(Date.now() / 1000) +  60 * 60 * 24 * 365,
       });
 
       await fetch("/api/set-token", {
