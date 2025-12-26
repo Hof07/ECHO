@@ -38,14 +38,22 @@ export const PlayerProvider = ({ children }) => {
   };
 
   /* ================= STATE INITIALIZATION ================= */
-  // These pull from localStorage so the player "remembers" on refresh
-  const [playlist, setPlaylist] = useState(() => getSaved("player_playlist", []));
-  const [currentIndex, setCurrentIndex] = useState(() => getSaved("player_index", 0));
-  const [currentSong, setCurrentSong] = useState(() => getSaved("player_current_song", null));
-  const [progress, setProgress] = useState(() => getSaved("player_progress", 0));
+  const [playlist, setPlaylist] = useState(() =>
+    getSaved("player_playlist", [])
+  );
+  const [currentIndex, setCurrentIndex] = useState(() =>
+    getSaved("player_index", 0)
+  );
+  const [currentSong, setCurrentSong] = useState(() =>
+    getSaved("player_current_song", null)
+  );
+  const [progress, setProgress] = useState(() =>
+    getSaved("player_progress", 0)
+  );
   const [volume, setVolume] = useState(() => getSaved("player_volume", 1));
   const [isLoop, setIsLoop] = useState(() => getSaved("player_loop", false));
-  
+
+  // isPlaying starts as false so a fresh refresh doesn't "Autoplay" illegally
   const [isPlaying, setIsPlaying] = useState(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -68,11 +76,13 @@ export const PlayerProvider = ({ children }) => {
     localStorage.setItem("player_loop", JSON.stringify(isLoop));
   }, [currentSong, playlist, currentIndex, volume, isLoop]);
 
-  // Save progress frequently for high accuracy on refresh
   useEffect(() => {
     const interval = setInterval(() => {
       if (audioRef.current && !audioRef.current.paused) {
-        localStorage.setItem("player_progress", JSON.stringify(audioRef.current.currentTime));
+        localStorage.setItem(
+          "player_progress",
+          JSON.stringify(audioRef.current.currentTime)
+        );
       }
     }, 2000);
     return () => clearInterval(interval);
@@ -87,8 +97,10 @@ export const PlayerProvider = ({ children }) => {
     if (audioCtx.current) return;
     const Context = window.AudioContext || window.webkitAudioContext;
     audioCtx.current = new Context();
-    source.current = audioCtx.current.createMediaElementSource(audioRef.current);
-    
+    source.current = audioCtx.current.createMediaElementSource(
+      audioRef.current
+    );
+
     bassNode.current = audioCtx.current.createBiquadFilter();
     presenceNode.current = audioCtx.current.createBiquadFilter();
     clarityNode.current = audioCtx.current.createBiquadFilter();
@@ -152,16 +164,26 @@ export const PlayerProvider = ({ children }) => {
   };
 
   /* ================= PLAYER ACTIONS ================= */
-  const loadAndPlay = (song, index = 0) => {
+  const loadAndPlay = (song, index = 0, autoPlay = true) => {
     if (!song) return;
+
+    // Reset progress in storage only if it's a NEW song being selected
+    if (currentSong?.audio_url !== song.audio_url) {
+      localStorage.removeItem("player_progress");
+    }
+
     setCurrentIndex(index);
     setCurrentSong(song);
+    setProgress(0);
     lastTimeRef.current = 0;
+
+    // Set internal state to play. This triggers the useEffect below.
+    setIsPlaying(autoPlay);
   };
 
   const playSong = (song, index, list = []) => {
     if (Array.isArray(list) && list.length) setPlaylist(list);
-    loadAndPlay(song, index);
+    loadAndPlay(song, index, true);
   };
 
   const togglePlay = async () => {
@@ -170,7 +192,9 @@ export const PlayerProvider = ({ children }) => {
     if (isPlaying) {
       audio.pause();
     } else {
-      if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
+      if (!audioCtx.current) initAudioEngine();
+      if (audioCtx.current?.state === "suspended")
+        await audioCtx.current.resume();
       try {
         await audio.play();
       } catch {
@@ -182,20 +206,19 @@ export const PlayerProvider = ({ children }) => {
   const playNext = () => {
     if (!playlist.length) return;
     const nextIndex = (currentIndex + 1) % playlist.length;
-    loadAndPlay(playlist[nextIndex], nextIndex);
+    loadAndPlay(playlist[nextIndex], nextIndex, true);
   };
 
   const playPrev = () => {
     if (!playlist.length) return;
     const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-    loadAndPlay(playlist[prevIndex], prevIndex);
+    loadAndPlay(playlist[prevIndex], prevIndex, true);
   };
 
   const seekTo = (time) => {
     if (!audioRef.current) return;
     audioRef.current.currentTime = time;
     setProgress(time);
-    lastTimeRef.current = time;
     localStorage.setItem("player_progress", JSON.stringify(time));
   };
 
@@ -213,18 +236,9 @@ export const PlayerProvider = ({ children }) => {
   };
 
   /* ================= AUDIO EVENT LISTENERS ================= */
-  // Handle Song Loading and Progress Hydration
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
-
-    if (!currentSong) {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      setIsPlaying(false);
-      return;
-    }
+    if (!audio || !currentSong) return;
 
     const isNewSong = audio.src !== currentSong.audio_url;
 
@@ -234,23 +248,30 @@ export const PlayerProvider = ({ children }) => {
       audio.load();
 
       const handleLoadedData = async () => {
-        // Hydrate saved progress
+        // 1. Restore saved progress (useful for refreshes)
         const savedTime = getSaved("player_progress", 0);
         if (savedTime > 0) {
           audio.currentTime = savedTime;
         }
-        // Only autoplay if it's a song change, not a cold refresh
-        if (lastTimeRef.current === 0 && isPlaying) {
-          try { await audio.play(); } catch {}
+
+        // 2. Auto-play ONLY if isPlaying is true
+        // (This is true when selecting a song, but false on initial refresh)
+        if (isPlaying) {
+          try {
+            if (audioCtx.current?.state === "suspended")
+              await audioCtx.current.resume();
+            await audio.play();
+          } catch {
+            setIsPlaying(false);
+          }
         }
       };
 
       audio.addEventListener("loadeddata", handleLoadedData, { once: true });
       return () => audio.removeEventListener("loadeddata", handleLoadedData);
     }
-  }, [currentSong]);
+  }, [currentSong, isPlaying]);
 
-  // Sync Audio Element attributes
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
@@ -259,14 +280,15 @@ export const PlayerProvider = ({ children }) => {
     }
   }, [volume, isLoop, playbackRate]);
 
-  // Track Progress & Meta
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     const onTimeUpdate = () => setProgress(audio.currentTime);
     const onLoadedMeta = () => setDuration(audio.duration || 0);
-    const onEnded = () => { if (!audio.loop) setTimeout(() => playNext(), 50); };
-    
+    const onEnded = () => {
+      if (!audio.loop) playNext();
+    };
+
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMeta);
     audio.addEventListener("ended", onEnded);
@@ -277,7 +299,6 @@ export const PlayerProvider = ({ children }) => {
     };
   }, [playlist, currentIndex, isLoop]);
 
-  // Play/Pause State Sync
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -290,20 +311,6 @@ export const PlayerProvider = ({ children }) => {
       audio.removeEventListener("pause", onPause);
     };
   }, []);
-
-  // Media Session (Notification Controls)
-  useEffect(() => {
-    if (!currentSong || !navigator.mediaSession) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentSong.title || "Unknown Title",
-      artist: currentSong.artist_name || "Unknown Artist",
-      artwork: [{ src: currentSong.cover_url, sizes: "512x512", type: "image/png" }],
-    });
-    navigator.mediaSession.setActionHandler("play", togglePlay);
-    navigator.mediaSession.setActionHandler("pause", togglePlay);
-    navigator.mediaSession.setActionHandler("previoustrack", playPrev);
-    navigator.mediaSession.setActionHandler("nexttrack", playNext);
-  }, [currentSong]);
 
   return (
     <PlayerContext.Provider
