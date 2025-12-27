@@ -130,7 +130,7 @@ const DolbyAtmosSection = () => {
         <div className="space-y-8">
           <div className="flex items-center gap-4">
              <div className="w-8 h-[2px] bg-[#fa4565]"></div>
-             <span className="text-[#fa4565] font-mono text-xs tracking-widest uppercase">3D Mastering Engine</span>
+             <span className="text-[#fa4565] font-mono text-xs tracking-widest uppercase">Dolby Atmos </span>
           </div>
 
           <h2 className="text-6xl font-black text-white leading-tight">
@@ -139,7 +139,7 @@ const DolbyAtmosSection = () => {
           </h2>
 
           <p className="text-gray-400 text-lg font-light leading-relaxed max-w-lg">
-            Standard music is flat. Dolby Atmos is a 3D hemisphere. Our engine processes audio metadata to place instruments in a virtual room, creating a holographic soundstage that exists all around you.
+            Standard music is flat. Dolby Atmos is a 3D hemisphere. Our engine processes audio metadata to place instruments in a virtual room, creating a holographic soundstage that exists all around you. Using AURA Ai which help to create an simulation of Dolby Atmos 
           </p>
 
           <div className="grid grid-cols-2 gap-4">

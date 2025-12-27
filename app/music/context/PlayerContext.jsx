@@ -7,6 +7,7 @@ import React, {
   useState,
   useEffect,
 } from "react";
+import { Play, Headset } from "lucide-react"; // Assuming lucide-react for the icons
 
 const PlayerContext = createContext();
 export const usePlayer = () => useContext(PlayerContext);
@@ -25,7 +26,7 @@ export const PlayerProvider = ({ children }) => {
   const panner3D = useRef(null); 
   const punchNode = useRef(null);
   const gainNode = useRef(null);
-  const limiterNode = useRef(null); // ADDED: Safety node to stop crackle
+  const limiterNode = useRef(null);
 
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -58,9 +59,7 @@ export const PlayerProvider = ({ children }) => {
     const Context = window.AudioContext || window.webkitAudioContext;
     audioCtx.current = new Context();
 
-    source.current = audioCtx.current.createMediaElementSource(
-      audioRef.current
-    );
+    source.current = audioCtx.current.createMediaElementSource(audioRef.current);
 
     // Filter Stack
     bassNode.current = audioCtx.current.createBiquadFilter();
@@ -69,13 +68,13 @@ export const PlayerProvider = ({ children }) => {
     airNode.current = audioCtx.current.createBiquadFilter();
 
     panner3D.current = audioCtx.current.createPanner();
-    panner3D.current.panningModel = "HRTF"; 
+    panner3D.current.panningModel = "HRTF"; // Standard for Atmos headphones
     panner3D.current.distanceModel = "inverse";
 
     punchNode.current = audioCtx.current.createDynamicsCompressor();
     gainNode.current = audioCtx.current.createGain();
     
-    // Safety Limiter: This prevents the "bubble blast/crackle" by capping the volume
+    // Safety Limiter: Crucial for Bluetooth headphones to prevent crackling
     limiterNode.current = audioCtx.current.createDynamicsCompressor();
     limiterNode.current.threshold.value = -0.5;
     limiterNode.current.knee.value = 0;
@@ -83,7 +82,7 @@ export const PlayerProvider = ({ children }) => {
 
     // 3D EQ Config
     bassNode.current.type = "lowshelf";
-    bassNode.current.frequency.value = 60; // Adjusted for cleaner sub-bass
+    bassNode.current.frequency.value = 60; 
 
     presenceNode.current.type = "peaking";
     presenceNode.current.frequency.value = 2800; 
@@ -96,7 +95,7 @@ export const PlayerProvider = ({ children }) => {
     airNode.current.frequency.value = 14000;
 
     // Theater Loudness (Compression)
-    punchNode.current.threshold.value = -24; // Less extreme than -35 to avoid "pumping"
+    punchNode.current.threshold.value = -24; 
     punchNode.current.ratio.value = 4;
     punchNode.current.knee.value = 30;
 
@@ -110,11 +109,11 @@ export const PlayerProvider = ({ children }) => {
       .connect(panner3D.current)
       .connect(punchNode.current)
       .connect(gainNode.current)
-      .connect(limiterNode.current) // Final safety check before speakers
+      .connect(limiterNode.current) 
       .connect(audioCtx.current.destination);
   };
 
-  /* ================= 3D SPATIAL TOGGLE ================= */
+  /* ================= 3D SPATIAL TOGGLE (DOLBY ATMOS MODE) ================= */
   const toggleEnhancedAudio = () => {
     if (!audioCtx.current) initAudioEngine();
     const newState = !isEnhanced;
@@ -125,17 +124,18 @@ export const PlayerProvider = ({ children }) => {
     const t = audioCtx.current.currentTime + 0.3;
 
     if (newState) {
+      // Atmos Positioning: 3D Hemisphere simulation
       panner3D.current.positionX.linearRampToValueAtTime(0, t);
-      panner3D.current.positionY.linearRampToValueAtTime(0.5, t); 
-      panner3D.current.positionZ.linearRampToValueAtTime(1.5, t); 
+      panner3D.current.positionY.linearRampToValueAtTime(0.8, t); // Height Channel
+      panner3D.current.positionZ.linearRampToValueAtTime(1.8, t); // Depth
 
-      // Improved Gain Values: High enough to feel, low enough not to distort
-      bassNode.current.gain.linearRampToValueAtTime(8, t);
+      // Cinema EQ: Massive sub-bass and high air
+      bassNode.current.gain.linearRampToValueAtTime(10, t);
       presenceNode.current.gain.linearRampToValueAtTime(4, t);
       clarityNode.current.gain.linearRampToValueAtTime(6, t);
-      airNode.current.gain.linearRampToValueAtTime(7, t);
+      airNode.current.gain.linearRampToValueAtTime(9, t);
 
-      gainNode.current.gain.linearRampToValueAtTime(1.0, t);
+      gainNode.current.gain.linearRampToValueAtTime(1.1, t);
     } else {
       panner3D.current.positionX.linearRampToValueAtTime(0, t);
       panner3D.current.positionY.linearRampToValueAtTime(0, t);
@@ -149,7 +149,7 @@ export const PlayerProvider = ({ children }) => {
     }
   };
 
-  // --- REST OF THE PLAYER LOGIC ---
+  /* ================= PLAYER CORE LOGIC (UNTOUCHED) ================= */
   const loadAndPlay = (song, index = 0) => {
     if (!song) return;
     setCurrentIndex(index);
