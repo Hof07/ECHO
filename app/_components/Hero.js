@@ -77,6 +77,93 @@ const trendingPlaylists = [
 ];
 
 
+/**
+ * Dolby Atmos 3D Visualization Component
+ */
+/**
+ * Professional Spatial Stage Component
+ * Focus: Object-Based Physics & Hardware Aesthetics
+ */
+const DolbyAtmosSection = () => {
+  return (
+    <section className="py-24 px-6 relative overflow-hidden bg-[#050505]">
+      {/* Subtle Glow Layer */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#fa4565]/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+      <div className="max-w-[1400px] mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
+        
+        {/* LEFT: THE SPATIAL VISUALIZER */}
+        <div className="perspective-container">
+          <div className="relative w-full h-full flex items-center justify-center transform-style-3d">
+            
+            {/* THE CORE (Your SVG inside a glass-morphic chip) */}
+            <div className="relative z-30 p-10 rounded-[2.5rem] bg-[#111] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] animate-float-slow">
+              <div className="absolute inset-0 bg-[#fa4565]/5 blur-2xl rounded-full"></div>
+              <svg width="90px" height="90px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative z-10">
+                <defs>
+                  <linearGradient id="dolbyCore" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#fa4565" />
+                    <stop offset="100%" stopColor="#fa4565" />
+                  </linearGradient>
+                </defs>
+                <path d="M15.2073 4.50372C18.5358 2.97323 20.2 2.20799 20.996 3.00399C21.792 3.79998 21.0268 5.46421 19.4963 8.79267L18.6427 10.649C18.3371 11.3137 18.1843 11.646 18.1843 11.9999C18.1843 12.3539 18.3371 12.6862 18.6427 13.3509L19.4963 15.2072C21.0268 18.5357 21.792 20.1999 20.996 20.9959C20.2 21.7919 18.5358 21.0266 15.2073 19.4962L13.351 18.6426C12.6863 18.337 12.354 18.1841 12.0001 18.1841C11.6461 18.1841 11.3138 18.337 10.6491 18.6426L8.7928 19.4962C5.46434 21.0266 3.80011 21.7919 3.00411 20.9959C2.20811 20.1999 2.97335 18.5357 4.50384 15.2072L5.35741 13.3509C5.66304 12.6862 5.81586 12.3539 5.81586 11.9999C5.81586 11.646 5.66304 11.3137 5.35741 10.649L4.50384 8.79267C2.97335 5.46421 2.20811 3.79998 3.00411 3.00399C3.80011 2.20799 5.46434 2.97323 8.7928 4.50372L10.6491 5.35729C11.3138 5.66292 11.6461 5.81574 12.0001 5.81574C12.354 5.81574 12.6863 5.66292 13.351 5.35729L15.2073 4.50372Z" fill="url(#dolbyCore)" />
+              </svg>
+            </div>
+
+            {/* SPATIAL OBJECTS (Moving independent points) */}
+            <div className="ring-kinetic ring-x animate-orbit-x">
+               <div className="absolute top-0 left-1/2 w-2 h-2 bg-[#fa4565] rounded-full shadow-[0_0_15px_#fa4565]"></div>
+            </div>
+            <div className="ring-kinetic ring-y animate-orbit-y">
+               <div className="absolute bottom-0 left-1/2 w-2 h-2 bg-white/40 rounded-full shadow-[0_0_10px_white]"></div>
+            </div>
+            
+            {/* SCANNING GRID */}
+            <div className="absolute w-[85vmin] h-[85vmin] max-w-[500px] max-h-[500px] border border-white/5 rounded-full rotate-x-75 transform-style-3d">
+               <div className="absolute inset-0 border-t-2 border-[#fa4565]/30 rounded-full animate-spin"></div>
+               <div className="absolute inset-0 border border-dashed border-white/5 rounded-full rotate-y-90"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: CONTENT SECTION */}
+        <div className="space-y-8">
+          <div className="flex items-center gap-4">
+             <div className="w-8 h-[2px] bg-[#fa4565]"></div>
+             <span className="text-[#fa4565] font-mono text-xs tracking-widest uppercase">3D Mastering Engine</span>
+          </div>
+
+          <h2 className="text-6xl font-black text-white leading-tight">
+            Dolby Atmos. <br />
+            <span className="text-gray-600 font-light">Infinite Space.</span>
+          </h2>
+
+          <p className="text-gray-400 text-lg font-light leading-relaxed max-w-lg">
+            Standard music is flat. Dolby Atmos is a 3D hemisphere. Our engine processes audio metadata to place instruments in a virtual room, creating a holographic soundstage that exists all around you.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+             <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#fa4565]/50 transition-colors">
+                <p className="text-gray-500 text-[10px] uppercase tracking-tighter mb-1">Positioning</p>
+                <p className="text-xl font-bold">128-Object</p>
+             </div>
+             <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#fa4565]/50 transition-colors">
+                <p className="text-gray-500 text-[10px] uppercase tracking-tighter mb-1">Playback</p>
+                <p className="text-xl font-bold">360° Field</p>
+             </div>
+          </div>
+
+          <button className="flex items-center gap-3 px-8 py-4 bg-[#fa4565] text-black font-black rounded-xl hover:scale-105 transition-transform active:scale-95 shadow-[0_15px_30px_-5px_rgba(250,69,101,0.4)]">
+             <Headset size={20} />
+             INITIALIZE SURROUND
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+
 const globalCharts = [
   { rank: 1, title: "Blinding Lights", artist: "The Weeknd", duration: " 3:20" },
   { rank: 2, title: "Shape of You", artist: "Ed Sheeran", duration: " 3:53" },
@@ -459,6 +546,8 @@ export default function App() {
 
       {/* 5. AI TRACK ANALYZER (NEW SECTION with Gemini API) */}
       <AiTrackAnalyzer apiKey={apiKey} />
+
+      <DolbyAtmosSection />
 
       {/* 6. CORE FEATURES SECTION */}
       <section className={`py-20 md:py-32 px-6 md:px-8 max-w-[${MAX_WIDTH}] mx-auto relative z-10`}>
