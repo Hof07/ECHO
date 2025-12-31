@@ -7,7 +7,7 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { Play, Headset } from "lucide-react"; // Assuming lucide-react for the icons
+import { Play, Headset } from "lucide-react";
 
 const PlayerContext = createContext();
 export const usePlayer = () => useContext(PlayerContext);
@@ -23,15 +23,43 @@ export const PlayerProvider = ({ children }) => {
   const presenceNode = useRef(null);
   const clarityNode = useRef(null);
   const airNode = useRef(null);
-  const panner3D = useRef(null); 
+  const panner3D = useRef(null);
   const punchNode = useRef(null);
   const gainNode = useRef(null);
   const limiterNode = useRef(null);
 
-  const [playlist, setPlaylist] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentSong, setCurrentSong] = useState(null);
+  /* ================= STATE & PERSISTENCE (RESTART MEMORY) ================= */
+  const [playlist, setPlaylist] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("player_playlist");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("player_current_index");
+      return saved ? parseInt(saved) : 0;
+    }
+    return 0;
+  });
+
+  const [currentSong, setCurrentSong] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("player_current_song");
+      return saved ? JSON.parse(saved) : null;
+    }
+    return null;
+  });
+
   const [isEnhanced, setIsEnhanced] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoop, setIsLoop] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(1.0);
 
   const [listenedSeconds, setListenedSeconds] = useState(() => {
     if (typeof window !== "undefined") {
@@ -41,64 +69,53 @@ export const PlayerProvider = ({ children }) => {
     return 0;
   });
 
+  /* ================= SAVE STATE TO LOCAL STORAGE ================= */
   useEffect(() => {
+    localStorage.setItem("player_playlist", JSON.stringify(playlist));
+    localStorage.setItem("player_current_index", currentIndex.toString());
+    localStorage.setItem("player_current_song", JSON.stringify(currentSong));
     localStorage.setItem("total_listened_time", listenedSeconds.toString());
-  }, [listenedSeconds]);
+  }, [playlist, currentIndex, currentSong, listenedSeconds]);
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoop, setIsLoop] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [playbackRate, setPlaybackRate] = useState(1.0);
-
-  /* ================= 3D ENGINE INITIALIZATION ================= */
+  /* ================= AUDIO ENGINE INITIALIZATION (MOBILE FIX) ================= */
   const initAudioEngine = () => {
     if (audioCtx.current) return;
 
     const Context = window.AudioContext || window.webkitAudioContext;
-    audioCtx.current = new Context();
+    // latencyHint 'playback' helps mobile browsers prevent lag
+    audioCtx.current = new Context({ latencyHint: "playback" });
 
     source.current = audioCtx.current.createMediaElementSource(audioRef.current);
 
-    // Filter Stack
     bassNode.current = audioCtx.current.createBiquadFilter();
     presenceNode.current = audioCtx.current.createBiquadFilter();
     clarityNode.current = audioCtx.current.createBiquadFilter();
     airNode.current = audioCtx.current.createBiquadFilter();
-
     panner3D.current = audioCtx.current.createPanner();
-    panner3D.current.panningModel = "HRTF"; // Standard for Atmos headphones
-    panner3D.current.distanceModel = "inverse";
+
+    // Performance: Use equalpower on mobile to save CPU and stop crackling
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    panner3D.current.panningModel = isMobile ? "equalpower" : "HRTF";
 
     punchNode.current = audioCtx.current.createDynamicsCompressor();
     gainNode.current = audioCtx.current.createGain();
-    
-    // Safety Limiter: Crucial for Bluetooth headphones to prevent crackling
+
+    // Safety Limiter: Stops the "Blast" distortion on mobile
     limiterNode.current = audioCtx.current.createDynamicsCompressor();
-    limiterNode.current.threshold.value = -0.5;
-    limiterNode.current.knee.value = 0;
+    limiterNode.current.threshold.value = -1.0;
     limiterNode.current.ratio.value = 20;
 
-    // 3D EQ Config
     bassNode.current.type = "lowshelf";
-    bassNode.current.frequency.value = 60; 
-
+    bassNode.current.frequency.value = 60;
     presenceNode.current.type = "peaking";
-    presenceNode.current.frequency.value = 2800; 
-    presenceNode.current.Q.value = 0.7;
-
+    presenceNode.current.frequency.value = 2800;
     clarityNode.current.type = "highshelf";
     clarityNode.current.frequency.value = 8000;
-
     airNode.current.type = "highshelf";
     airNode.current.frequency.value = 14000;
 
-    // Theater Loudness (Compression)
-    punchNode.current.threshold.value = -24; 
+    punchNode.current.threshold.value = -24;
     punchNode.current.ratio.value = 4;
-    punchNode.current.knee.value = 30;
-
     gainNode.current.gain.value = 0.9;
 
     source.current
@@ -109,11 +126,11 @@ export const PlayerProvider = ({ children }) => {
       .connect(panner3D.current)
       .connect(punchNode.current)
       .connect(gainNode.current)
-      .connect(limiterNode.current) 
+      .connect(limiterNode.current)
       .connect(audioCtx.current.destination);
   };
 
-  /* ================= 3D SPATIAL TOGGLE (DOLBY ATMOS MODE) ================= */
+  /* ================= TOGGLE ENHANCED AUDIO (NO CRACKLE) ================= */
   const toggleEnhancedAudio = () => {
     if (!audioCtx.current) initAudioEngine();
     const newState = !isEnhanced;
@@ -121,35 +138,32 @@ export const PlayerProvider = ({ children }) => {
 
     if (audioCtx.current.state === "suspended") audioCtx.current.resume();
 
-    const t = audioCtx.current.currentTime + 0.3;
+    const t = audioCtx.current.currentTime;
+    const ramp = 0.4;
+
+    const safeRamp = (param, val) => {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(param.value, t);
+      param.linearRampToValueAtTime(val, t + ramp);
+    };
 
     if (newState) {
-      // Atmos Positioning: 3D Hemisphere simulation
-      panner3D.current.positionX.linearRampToValueAtTime(0, t);
-      panner3D.current.positionY.linearRampToValueAtTime(0.8, t); // Height Channel
-      panner3D.current.positionZ.linearRampToValueAtTime(1.8, t); // Depth
-
-      // Cinema EQ: Massive sub-bass and high air
-      bassNode.current.gain.linearRampToValueAtTime(10, t);
-      presenceNode.current.gain.linearRampToValueAtTime(4, t);
-      clarityNode.current.gain.linearRampToValueAtTime(6, t);
-      airNode.current.gain.linearRampToValueAtTime(9, t);
-
-      gainNode.current.gain.linearRampToValueAtTime(1.1, t);
+      safeRamp(panner3D.current.positionY, 0.7);
+      safeRamp(panner3D.current.positionZ, 1.5);
+      safeRamp(bassNode.current.gain, 7);
+      safeRamp(presenceNode.current.gain, 3);
+      safeRamp(clarityNode.current.gain, 4);
+      safeRamp(airNode.current.gain, 7);
+      safeRamp(gainNode.current.gain, 1.05);
     } else {
-      panner3D.current.positionX.linearRampToValueAtTime(0, t);
-      panner3D.current.positionY.linearRampToValueAtTime(0, t);
-      panner3D.current.positionZ.linearRampToValueAtTime(0, t);
-
-      bassNode.current.gain.linearRampToValueAtTime(0, t);
-      presenceNode.current.gain.linearRampToValueAtTime(0, t);
-      clarityNode.current.gain.linearRampToValueAtTime(0, t);
-      airNode.current.gain.linearRampToValueAtTime(0, t);
-      gainNode.current.gain.linearRampToValueAtTime(0.9, t);
+      safeRamp(panner3D.current.positionY, 0);
+      safeRamp(panner3D.current.positionZ, 0);
+      [bassNode, presenceNode, clarityNode, airNode].forEach(node => safeRamp(node.current.gain, 0));
+      safeRamp(gainNode.current.gain, 0.9);
     }
   };
 
-  /* ================= PLAYER CORE LOGIC (UNTOUCHED) ================= */
+  /* ================= PLAYER ACTIONS ================= */
   const loadAndPlay = (song, index = 0) => {
     if (!song) return;
     setCurrentIndex(index);
@@ -158,23 +172,17 @@ export const PlayerProvider = ({ children }) => {
   };
 
   const playSong = (song, index, list = []) => {
-    if (Array.isArray(list) && list.length) setPlaylist(list);
+    if (list.length) setPlaylist(list);
     loadAndPlay(song, index);
   };
 
   const togglePlay = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    if (!audioRef.current) return;
     if (isPlaying) {
-      audio.pause();
+      audioRef.current.pause();
     } else {
-      if (audioCtx.current?.state === "suspended")
-        await audioCtx.current.resume();
-      try {
-        await audio.play();
-      } catch {
-        setIsPlaying(false);
-      }
+      if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
+      audioRef.current.play().catch(() => setIsPlaying(false));
     }
   };
 
@@ -193,16 +201,6 @@ export const PlayerProvider = ({ children }) => {
   const seekTo = (time) => {
     if (!audioRef.current) return;
     audioRef.current.currentTime = time;
-    setProgress(time);
-    lastTimeRef.current = time;
-  };
-
-  const toggleLoop = () => {
-    setIsLoop((s) => {
-      const next = !s;
-      if (audioRef.current) audioRef.current.loop = next;
-      return next;
-    });
   };
 
   const changeVolume = (val) => {
@@ -210,6 +208,84 @@ export const PlayerProvider = ({ children }) => {
     if (audioRef.current) audioRef.current.volume = val;
   };
 
+  const toggleLoop = () => {
+    setIsLoop((prev) => {
+      const next = !prev;
+      if (audioRef.current) audioRef.current.loop = next;
+      return next;
+    });
+  };
+
+  /* ================= MEDIA SESSION (LOCK SCREEN) ================= */
+  const updatePlaybackState = () => {
+    if (!navigator.mediaSession) return;
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  };
+
+  useEffect(() => {
+    if (!currentSong || !navigator.mediaSession) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentSong.title || "Unknown Title",
+      artist: currentSong.artist_name || "Unknown Artist",
+      artwork: [{ src: currentSong.cover_url, sizes: "512x512", type: "image/png" }],
+    });
+
+    navigator.mediaSession.setActionHandler("play", togglePlay);
+    navigator.mediaSession.setActionHandler("pause", togglePlay);
+    navigator.mediaSession.setActionHandler("previoustrack", playPrev);
+    navigator.mediaSession.setActionHandler("nexttrack", playNext);
+    navigator.mediaSession.setActionHandler("seekto", (e) => seekTo(e.seekTime));
+
+    updatePlaybackState();
+  }, [currentSong, isPlaying]);
+
+  /* ================= CORE AUDIO LISTENERS ================= */
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onTimeUpdate = () => setProgress(audio.currentTime);
+    const onLoadedMeta = () => setDuration(audio.duration || 0);
+    const onEnded = () => { if (!audio.loop) setTimeout(playNext, 100); };
+
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMeta);
+    audio.addEventListener("ended", onEnded);
+
+    return () => {
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMeta);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, [playlist, currentIndex]);
+
+  // Handle URL change
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentSong) return;
+
+    // Check if song is already loaded to avoid restarting on page refresh
+    if (audio.src !== currentSong.audio_url) {
+      audio.src = currentSong.audio_url;
+      audio.crossOrigin = "anonymous";
+      audio.load();
+      // On browser restart, we don't auto-play to respect browser policy
+      // but if the user clicks play, it works.
+    }
+  }, [currentSong]);
+
+  // Sync volume and speed
+  useEffect(() => { if (audioRef.current) audioRef.current.volume = volume; }, [volume]);
+  useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = playbackRate; }, [playbackRate]);
+
+  // Listen time tracker
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -226,137 +302,19 @@ export const PlayerProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    return () => {
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onTimeUpdate = () => setProgress(audio.currentTime);
-    const onLoadedMeta = () => setDuration(audio.duration || 0);
-    const onEnded = () => {
-      if (!audio.loop) setTimeout(() => playNext(), 50);
-    };
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMeta);
-    audio.addEventListener("ended", onEnded);
-    return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMeta);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, [playlist, currentIndex, isLoop]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (!currentSong) {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      setIsPlaying(false);
-      setProgress(0);
-      setDuration(0);
-      return;
-    }
-    audio.pause();
-    audio.src = currentSong.audio_url;
-    audio.crossOrigin = "anonymous";
-    audio.preload = "auto";
-    audio.load();
-
-    const handleLoadedData = async () => {
-      try {
-        await audio.play();
-      } catch {
-        setIsPlaying(false);
-      }
-    };
-    audio.addEventListener("loadeddata", handleLoadedData);
-    return () => audio.removeEventListener("loadeddata", handleLoadedData);
-  }, [currentSong]);
-
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.playbackRate = playbackRate;
-  }, [playbackRate]);
-
-  const updatePlaybackState = () => {
-    if (!navigator.mediaSession) return;
-    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-    navigator.mediaSession.setPositionState({
-      duration: duration || 0,
-      playbackRate: playbackRate,
-      position: progress || 0,
-    });
-  };
-
-  useEffect(() => {
-    updatePlaybackState();
-  }, [duration, progress, isPlaying]);
-
-  useEffect(() => {
-    if (!currentSong || !navigator.mediaSession) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentSong.title || "Unknown Title",
-      artist: currentSong.artist_name || "Unknown Artist",
-      artwork: [
-        { src: currentSong.cover_url, sizes: "512x512", type: "image/png" },
-      ],
-    });
-    navigator.mediaSession.setActionHandler("play", () => audioRef.current?.play());
-    navigator.mediaSession.setActionHandler("pause", () => audioRef.current?.pause());
-    navigator.mediaSession.setActionHandler("previoustrack", playPrev);
-    navigator.mediaSession.setActionHandler("nexttrack", playNext);
-    navigator.mediaSession.setActionHandler("seekto", (e) => {
-      audioRef.current.currentTime = e.seekTime;
-    });
-    updatePlaybackState();
-  }, [currentSong]);
-
   const currentSongId = currentSong?.id || null;
 
   return (
     <PlayerContext.Provider
       value={{
-        playlist,
-        currentIndex,
-        currentSong,
-        isPlaying,
-        progress,
-        duration,
-        isLoop,
-        volume,
-        currentSongId,
-        playbackRate,
-        listenedSeconds,
-        isEnhanced,
-        toggleEnhancedAudio,
-        setPlaybackRate,
-        playSong,
-        togglePlay,
-        playNext,
-        playPrev,
-        seekTo,
-        toggleLoop,
-        changeVolume,
+        playlist, currentIndex, currentSong, isPlaying, progress, duration,
+        isLoop, volume, currentSongId, playbackRate, listenedSeconds, isEnhanced,
+        toggleEnhancedAudio, setPlaybackRate, playSong, togglePlay,
+        playNext, playPrev, seekTo, toggleLoop, changeVolume,
       }}
     >
       {children}
-      <audio ref={audioRef} preload="auto" />
+      <audio ref={audioRef} preload="auto" playsInline />
     </PlayerContext.Provider>
   );
 };
