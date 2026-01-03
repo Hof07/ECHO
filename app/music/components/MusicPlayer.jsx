@@ -18,6 +18,8 @@ import {
   Maximize,
   Minimize,
   MicVocal,
+  ChevronDown,
+  ChevronUp,
   // Shuffle, // Not used in the provided code
 } from "lucide-react";
 import SleepTimerModal from "./SleepTimerModal";
@@ -177,9 +179,8 @@ const FullScreenPlayer = ({
             className="p-1 transition-colors cursor-pointer hover:text-white"
           >
             <MoonStar
-              className={`w-6 h-6 ${
-                isSleeperMode ? "text-white" : "opacity-50 hover:opacity-100"
-              }`}
+              className={`w-6 h-6 ${isSleeperMode ? "text-white" : "opacity-50 hover:opacity-100"
+                }`}
             />
           </button>
           <button
@@ -209,9 +210,8 @@ const FullScreenPlayer = ({
 
           <button
             onClick={toggleLoop}
-            className={`${
-              isLoop ? "text-white" : "opacity-50 hover:opacity-100 "
-            }`}
+            className={`${isLoop ? "text-white" : "opacity-50 hover:opacity-100 "
+              }`}
           >
             <Repeat className="w-6 h-6 cursor-pointer" />
           </button>
@@ -277,6 +277,8 @@ export default function MusicPlayer() {
   const [isSlowPlayback, setIsSlowPlayback] = useState(false);
   const [prevRate, setPrevRate] = useState(1.0);
   const [showSpeedPopup, setShowSpeedPopup] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
 
   const seekBarRef = useRef(null);
 
@@ -440,7 +442,6 @@ export default function MusicPlayer() {
     );
   }
   // ------------------------------------------
-
   return (
     <>
       {/* 1. RENDER THE MODAL */}
@@ -453,7 +454,32 @@ export default function MusicPlayer() {
       />
 
       {/* 2. PLAYER BAR JSX */}
-      <div className="fixed bottom-0 w-full bg-black text-white pt-4 pb-3 px-3 sm:px-5 z-50 shadow-xl border-t border-[#222]">
+      {/* 1. ANIMATED TOGGLE TAB - Positioned to the Right */}
+      <div
+        className={`fixed right-6 z-[60] transition-all duration-500 ease-in-out ${isCollapsed ? "bottom-0" : "bottom-[130px] sm:bottom-[95px]"
+          }`}
+      >
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="bg-black/80 backdrop-blur-md relative bottom-[42px] text-white border border-[#222] px-3 py-1.5 rounded-t-xl shadow-2xl hover:border-[#fa4565]/50 transition-all flex items-center justify-center group"
+          title={isCollapsed ? "Show Player" : "Hide Player"}
+        >
+          {isCollapsed ? (
+            <div className="flex items-center gap-2">
+
+              <ChevronUp size={18} className="text-[#fa4565] animate-bounce" />
+            </div>
+          ) : (
+            <ChevronDown size={20} className="text-gray-400 group-hover:text-[#fa4565] transition-colors" />
+          )}
+        </button>
+      </div>
+
+      {/* 2. MAIN PLAYER BAR */}
+      <div
+        className={`fixed bottom-0 w-full bg-black text-white pt-4 pb-3 px-3 sm:px-5 z-50 shadow-xl border-t border-[#222] transition-transform duration-500 ease-in-out ${isCollapsed ? "translate-y-full" : "translate-y-0"
+          }`}
+      >
         {/* --- Seek Bar --- */}
         <div
           ref={seekBarRef}
@@ -461,7 +487,7 @@ export default function MusicPlayer() {
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onMouseLeave={() => setSeeking(false)}
+          onMouseLeave={() => { }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -472,37 +498,35 @@ export default function MusicPlayer() {
             style={{ width: `${progressPercent}%` }}
           />
           <div
-            className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#fa4565] transition-transform ${
-              seeking ? "scale-125" : "scale-0 group-hover:scale-100"
-            }`}
+            className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#fa4565] transition-transform ${seeking ? "scale-125" : "scale-0 group-hover:scale-100"
+              }`}
             style={{ left: `calc(${progressPercent}% - 8px)` }}
           />
         </div>
 
-        {/* Time */}
+        {/* Time Labels */}
         <div className="flex justify-between text-[10px] mt-1 opacity-75">
           <span>{formatTime(progress)}</span>
           <span>{formatTime(duration)}</span>
         </div>
 
-        {/* --- Controls and Info (Responsive Layout) --- */}
+        {/* --- Controls and Info --- */}
         <div className="flex items-center justify-between mt-3 flex-wrap sm:flex-nowrap">
+
           {/* 1. Song Info (Left) */}
           <div className="flex items-center gap-3 w-full sm:w-1/4 mb-3 sm:mb-0 order-1">
             <img
               loading="lazy"
-              src={currentSong.cover_url}
+              src={currentSong?.cover_url || "/default-cover.png"}
               alt="cover"
-              className="w-12 h-12 rounded object-cover flex-shrink-0"
+              className="w-12 h-12 rounded object-cover flex-shrink-0 border border-white/10"
             />
             <div className="leading-tight truncate min-w-0">
               <h4 className="font-semibold text-sm truncate">
-                {currentSong.title}
+                {currentSong?.title || "No Track Selected"}
               </h4>
               <p className="text-[11px] opacity-60 truncate">
-                {currentSong.artists?.name ||
-                  currentSong.artist_name ||
-                  "Unknown Artist"}
+                {currentSong?.artists?.name || currentSong?.artist_name || "Unknown Artist"}
               </p>
             </div>
           </div>
@@ -515,14 +539,10 @@ export default function MusicPlayer() {
 
             <button
               onClick={togglePlay}
-              className="cursor-pointer text-black p-3 rounded-full hover:scale-110 transition bg-[#fa4565] flex-shrink-0"
+              className="cursor-pointer text-black p-3 rounded-full hover:scale-110 transition bg-[#fa4565] flex-shrink-0 shadow-lg shadow-[#fa4565]/20"
               title={isPlaying ? "Pause" : "Play"}
             >
-              {isPlaying ? (
-                <Pause className="w-5 h-5 " />
-              ) : (
-                <Play className="w-5 h-5" />
-              )}
+              {isPlaying ? <Pause className="w-5 h-5 " /> : <Play className="w-5 h-5" />}
             </button>
 
             <button onClick={playNext} title="Skip Next">
@@ -531,166 +551,56 @@ export default function MusicPlayer() {
 
             <button onClick={toggleLoop} title="Toggle Loop">
               <Repeat
-                className={`w-5 h-5 transition ${
-                  isLoop
-                    ? "text-[#fa4565]"
-                    : "opacity-75 hover:opacity-100 cursor-pointer"
-                }`}
+                className={`w-5 h-5 transition ${isLoop ? "text-[#fa4565]" : "opacity-75 hover:opacity-100 cursor-pointer"
+                  }`}
               />
             </button>
           </div>
 
-          {/* 3. Special Controls (Right - Moved to order 2 on mobile, order 3 on desktop) */}
-          <div className="flex items-center gap-2 w-full sm:w-1/4  justify-end relative mb-3 sm:mb-0 order-2 sm:order-3 ">
+          {/* 3. Special Controls (Right) */}
+          <div className="flex items-center gap-2 w-full sm:w-1/4 justify-end relative mb-3 sm:mb-0 order-2 sm:order-3">
             <button
               onClick={toggleEnhancedAudio}
               title="Enhanced Audio (Dolby + Bass)"
-              className={`p-2 rounded-full flex flex-col cursor-pointer items-center gap-1 transition-all duration-500 ${
-                isEnhanced
-                  ? "bg-[#fa4565]/20 text-[#fa4565]  scale-110"
-                  : "text-gray-400 hover:text-white "
-              }`}
-            >
-              <DolbySvg active={isEnhanced} />
-             
-            </button>
-
-            <button
-              onClick={() => setIsTimerModalOpen(true)}
-              title="Set Sleep Timer"
-              className="p-1 transition-colors cursor-pointer"
-            >
-              <Clock
-                className={`w-5 h-5 ${"text-gray-400 hover:text-white"}`}
-              />
-            </button>
-
-            <button
-              onClick={() => setShowSpeedPopup(true)}
-              title="Playback Speed"
-              className="p-1 transition-colors cursor-pointer"
-            >
-              <Gauge
-                className={`w-5 h-5 ${
-                  showSpeedPopup
-                    ? "text-[#fa4565]"
-                    : "text-gray-400 hover:text-white"
+              className={`p-2 rounded-full flex flex-col cursor-pointer items-center gap-1 transition-all duration-500 ${isEnhanced
+                  ? "bg-[#fa4565]/20 text-[#fa4565] scale-110"
+                  : "text-gray-400 hover:text-white"
                 }`}
-              />
-            </button>
-
-            {showSpeedPopup && (
-              <div
-                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                role="dialog"
-                aria-modal="true"
+            >
+              {/* Dolby SVG Icon */}
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
               >
-                <div
-                  className="
-        bg-black/90 backdrop-blur-xl border border-white/20 rounded-2xl 
-        p-7 w-[400px] shadow-2xl relative
-      "
-                >
-                  {/* CLOSE BUTTON - Repositioned inside for a cleaner look */}
-                  <button
-                    onClick={() => setShowSpeedPopup(false)}
-                    className="absolute top-4 right-4 text-white/70 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-[#fa4565] rounded-full"
-                    aria-label="Close Playback Speed Popup"
-                  >
-                    <span className="text-xl leading-none">×</span>
-                  </button>
+                <path d="M24,20.352V3.648H0v16.704H24z M18.433,5.806h2.736v12.387h-2.736c-2.839,0-5.214-2.767-5.214-6.194S15.594,5.806,18.433,5.806z M2.831,5.806h2.736c2.839,0,5.214,2.767,5.214,6.194s-2.374,6.194-5.214,6.194H2.831V5.806z" />
+              </svg>
 
-                  {/* TITLE */}
-                  <h3 className="text-white text-center text-xl font-bold mb-6">
-                    Playback Speed
-                  </h3>
-
-                  {/* CURRENT SPEED DISPLAY - Prominent */}
-                  <div className="text-center mb-5">
-                    <span className="text-4xl font-extrabold text-[#fa4565]">
-                      {playbackRate.toFixed(2)}x
-                    </span>
-                  </div>
-
-                  {/* SLIDER */}
-                  <input
-                    type="range"
-                    min="0.25"
-                    max="2"
-                    step="0.05"
-                    value={playbackRate}
-                    onChange={(e) =>
-                      setPlaybackRate(parseFloat(e.target.value))
-                    }
-                    className="w-full accent-[#fa4565] h-2 cursor-pointer mb-2"
-                    aria-label="Adjust Playback Rate"
-                  />
-
-                  {/* Normal Speed Label */}
-                  <div className="flex justify-center mb-8">
-                    <span className="text-xs text-white/60">
-                      (1.00x is Normal)
-                    </span>
-                  </div>
-
-                  {/* QUICK SPEED BUTTONS - Using space-x-3 for better alignment */}
-                  <div className="flex justify-center space-x-3">
-                    {[0.25, 0.75, 1, 1.5, 1.75, 2].map((rate) => (
-                      <button
-                        key={rate}
-                        onClick={() => setPlaybackRate(rate)}
-                        className={`
-              w-14 px-1 py-2 text-sm rounded-lg font-semibold transition
-              border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#fa4565]
-              ${
-                playbackRate.toFixed(2) === rate.toFixed(2) // Ensure comparison works for floats
-                  ? "bg-[#fa4565] text-white border-transparent"
-                  : "text-white border-white/20 hover:bg-white/10"
-              }
-              ${
-                rate === 1 && playbackRate.toFixed(2) !== "1.00"
-                  ? "border-[#fa4565] text-[#fa4565] hover:text-white"
-                  : ""
-              }
-            `}
-                      >
-                        {rate}x
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* SYNCED: Sleeper Mode Button */}
-            <button
-              onClick={toggleSleeperMode}
-              title="Sleep Mode (30% Volume)"
-              className="p-1 transition-colors cursor-pointer"
-            >
-              <MoonStar
-                className={`w-5 h-5 ${
-                  isSleeperMode
-                    ? "text-[#fa4565]"
-                    : "text-gray-400 hover:text-white"
-                }`}
-              />
+              {/* Optional: Keeping a tiny label if you want, otherwise you can remove this span */}
+              {/* <span className="text-[8px] font-bold leading-none">DOLBY</span> */}
             </button>
 
-            {/* 🔊 Mute Button */}
-            <button onClick={toggleMute} title={isMuted ? "Unmute" : "Mute"}>
-              {isMuted ? (
-                <VolumeX className="cursor-pointer w-5 h-5 text-[#fa4565]" />
-              ) : (
-                <Volume2 className="cursor-pointer w-5 h-5 text-gray-400 hover:text-white" />
-              )}
+            <button onClick={() => setIsTimerModalOpen(true)} className="p-1 cursor-pointer">
+              <Clock className="w-5 h-5 text-gray-400 hover:text-white transition" />
             </button>
-            <button
-              onClick={toggleFullscreen}
-              title="Toggle Fullscreen"
-              className="p-1 transition-colors cursor-pointer"
-            >
-              <Maximize className="w-5 h-5 text-gray-400 hover:text-white" />
+
+            <button onClick={() => setShowSpeedPopup(true)} className="p-1 cursor-pointer">
+              <Gauge className={`w-5 h-5 transition ${showSpeedPopup ? "text-[#fa4565]" : "text-gray-400 hover:text-white"}`} />
+            </button>
+
+            <button onClick={toggleSleeperMode} className="p-1 cursor-pointer">
+              <MoonStar className={`w-5 h-5 transition ${isSleeperMode ? "text-[#fa4565]" : "text-gray-400 hover:text-white"}`} />
+            </button>
+
+            <button onClick={toggleMute}>
+              {isMuted ? <VolumeX className="w-5 h-5 text-[#fa4565]" /> : <Volume2 className="w-5 h-5 text-gray-400 hover:text-white" />}
+            </button>
+
+            <button onClick={toggleFullscreen} className="p-1 cursor-pointer">
+              <Maximize className="w-5 h-5 text-gray-400 hover:text-white transition" />
             </button>
           </div>
         </div>
