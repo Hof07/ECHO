@@ -13,7 +13,6 @@ import React, {
 /**
  * PLAYER CONTEXT & HOOK
  * Provides a production-grade 3D Audio Engine with Dolby-style Spatial Tuning.
- * Includes Spotify-style persistence for last played song and timestamp.
  */
 const PlayerContext = createContext();
 export const usePlayer = () => useContext(PlayerContext);
@@ -27,15 +26,14 @@ export const PlayerProvider = ({ children }) => {
   const sourceNode = useRef(null);
   const lastTimeRef = useRef(0);
   
-  // Advanced Processing Nodes for "Surround Sound"
-  const bassNode = useRef(null);       // Deep Sub-Bass (Dolby feel)
-  const presenceNode = useRef(null);   // Vocal/Presence Clarity
-  const airNode = useRef(null);        // Cinematic High-end Air
-  const spatialPanner = useRef(null);  // 3D Position (HRTF)
-  const gainNode = useRef(null);       // Master Level Stage
-  const compressor = useRef(null);     // Sound "Glue" and Punch
-  const limiter = useRef(null);        // Digital Peak Protection
-  const analyzerNode = useRef(null);   // For Waveform Visualizers
+  const bassNode = useRef(null);
+  const presenceNode = useRef(null);
+  const airNode = useRef(null);
+  const spatialPanner = useRef(null);
+  const gainNode = useRef(null);
+  const compressor = useRef(null);
+  const limiter = useRef(null);
+  const analyzerNode = useRef(null);
 
   /* =========================================================
      STATE: CORE ENGINE & PERSISTENCE
@@ -54,7 +52,7 @@ export const PlayerProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   /* =========================================================
-     1. PERSISTENCE LAYER: HYDRATION (SPOTIFY STYLE)
+     1. PERSISTENCE LAYER: HYDRATION
      ========================================================= */
   useEffect(() => {
     const savedSong = localStorage.getItem("last_played_song");
@@ -113,13 +111,9 @@ export const PlayerProvider = ({ children }) => {
       spatialPanner.current = audioCtx.current.createPanner();
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       spatialPanner.current.panningModel = isMobile ? "equalpower" : "HRTF";
-      spatialPanner.current.distanceModel = "inverse";
 
       gainNode.current = audioCtx.current.createGain();
       compressor.current = audioCtx.current.createDynamicsCompressor();
-      compressor.current.threshold.value = -24;
-      compressor.current.ratio.value = 4;
-
       limiter.current = audioCtx.current.createDynamicsCompressor();
       limiter.current.threshold.value = -1.0; 
 
@@ -137,19 +131,19 @@ export const PlayerProvider = ({ children }) => {
         .connect(audioCtx.current.destination);
 
     } catch (err) {
-      console.error("Critical: 3D Audio Engine failed to start", err);
+      console.error("Critical: 3D Audio Engine failed", err);
     }
   }, []);
 
   /* =========================================================
-     3. SPATIAL ENHANCEMENT TOGGLE (DOLBY EFFECT)
+     3. SPATIAL ENHANCEMENT TOGGLE
      ========================================================= */
   const toggleEnhancedAudio = useCallback(() => {
     if (!audioCtx.current) initSpatialEngine();
     const newState = !isEnhanced;
     setIsEnhanced(newState);
 
-    if (audioCtx.current.state === "suspended") audioCtx.current.resume();
+    if (audioCtx.current?.state === "suspended") audioCtx.current.resume();
 
     const t = audioCtx.current.currentTime;
     const fade = 0.6;
@@ -163,22 +157,19 @@ export const PlayerProvider = ({ children }) => {
 
     if (newState) {
       ramp(spatialPanner.current.positionZ, 2.5);
-      ramp(spatialPanner.current.positionY, 1.2);
       ramp(bassNode.current.gain, 12);
       ramp(airNode.current.gain, 10);
       ramp(gainNode.current.gain, 1.1);
     } else {
       ramp(spatialPanner.current.positionZ, 0);
-      ramp(spatialPanner.current.positionY, 0);
       ramp(bassNode.current.gain, 0);
-      ramp(presenceNode.current.gain, 0);
       ramp(airNode.current.gain, 0);
       ramp(gainNode.current.gain, 0.9);
     }
   }, [isEnhanced, initSpatialEngine]);
 
   /* =========================================================
-     4. CORE PLAYER ACTIONS (UPDATED FOR AUTO-NEXT FIX)
+     4. CORE PLAYER ACTIONS (FIXED FOR PLAY-ON-NEXT)
      ========================================================= */
   const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
@@ -191,7 +182,7 @@ export const PlayerProvider = ({ children }) => {
     if (audio.paused) {
       try {
         await audio.play();
-      } catch (err) { console.warn("Autoplay was blocked by browser", err); }
+      } catch (err) { console.warn("Play blocked", err); }
     } else {
       audio.pause();
     }
@@ -204,7 +195,7 @@ export const PlayerProvider = ({ children }) => {
     }
     setCurrentIndex(index);
     setCurrentSong(song);
-    setIsPlaying(true);
+    setIsPlaying(true); // This ensures the useEffect below triggers play()
   };
 
   const playNext = useCallback(async () => {
@@ -215,7 +206,7 @@ export const PlayerProvider = ({ children }) => {
     
     setCurrentIndex(nextIdx);
     setCurrentSong(playlist[nextIdx]);
-    setIsPlaying(true);
+    setIsPlaying(true); // FORCED TRUE: ensures logic in Section 7 fires
   }, [playlist, currentIndex]);
 
   const playPrev = useCallback(async () => {
@@ -226,7 +217,7 @@ export const PlayerProvider = ({ children }) => {
     
     setCurrentIndex(prevIdx);
     setCurrentSong(playlist[prevIdx]);
-    setIsPlaying(true);
+    setIsPlaying(true); // FORCED TRUE
   }, [playlist, currentIndex]);
 
   const seekTo = useCallback((time) => {
@@ -238,7 +229,7 @@ export const PlayerProvider = ({ children }) => {
   }, []);
 
   /* =========================================================
-     5. NOTIFICATION BAR & MEDIA CONTROL (SYSTEM LEVEL)
+     5. NOTIFICATION BAR & MEDIA CONTROL
      ========================================================= */
   useEffect(() => {
     if (!currentSong || !("mediaSession" in navigator)) return;
@@ -253,10 +244,9 @@ export const PlayerProvider = ({ children }) => {
     navigator.mediaSession.setActionHandler("pause", () => togglePlay());
     navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
     navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
-    navigator.mediaSession.setActionHandler("seekto", (d) => seekTo(d.seekTime));
-
+    
     localStorage.setItem("last_played_song", JSON.stringify(currentSong));
-  }, [currentSong, togglePlay, playNext, playPrev, seekTo]);
+  }, [currentSong, togglePlay, playNext, playPrev]);
 
   /* =========================================================
      6. UI SYNC & EVENT LISTENERS
@@ -265,75 +255,58 @@ export const PlayerProvider = ({ children }) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const onTimeUpdate = () => {
-      setProgress(audio.currentTime);
-      if (Math.floor(audio.currentTime) % 5 === 0) {
-        localStorage.setItem("last_timestamp", audio.currentTime.toString());
-      }
-    };
-
-    const onLoadedMetadata = () => {
-      setDuration(audio.duration);
-      const savedTime = localStorage.getItem("last_timestamp");
-      const savedSong = localStorage.getItem("last_played_song");
-      if (savedTime && savedSong && JSON.parse(savedSong).id === currentSong?.id) {
-        audio.currentTime = parseFloat(savedTime);
-      }
-    };
-
+    const onTimeUpdate = () => setProgress(audio.currentTime);
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
-    const onEnded = () => {
-      if (!isLoop) {
-        playNext(); 
-      }
-    };
+    const onEnded = () => { if (!isLoop) playNext(); };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
 
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
     };
-  }, [currentSong, isLoop, playNext]);
+  }, [isLoop, playNext]);
 
   /* =========================================================
-     7. SOURCE LOADING HANDLER (FIXED FOR SEAMLESS PLAY)
+     7. SOURCE LOADING HANDLER (CRITICAL FIX FOR NEXT/PREV)
      ========================================================= */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentSong) return;
 
-    // Resetting src stops previous stream properly
-    audio.pause();
-    audio.src = currentSong.audio_url;
-    audio.crossOrigin = "anonymous";
-    audio.load();
+    // 1. Swap source
+    const isSameSource = audio.src === currentSong.audio_url;
+    if (!isSameSource) {
+        audio.pause();
+        audio.src = currentSong.audio_url;
+        audio.load();
+    }
 
-    // If isPlaying is true, we force the play command
+    // 2. If global isPlaying state is true, force the HTML5 element to play
     if (isPlaying) {
-      const startPlay = async () => {
+      const executePlay = async () => {
         try {
-          if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
+          if (audioCtx.current?.state === "suspended") {
+            await audioCtx.current.resume();
+          }
           await audio.play();
         } catch (err) {
-          console.warn("Playback failed during song transition", err);
+          console.warn("Playback prevented by browser policy", err);
           setIsPlaying(false);
         }
       };
-      startPlay();
+      executePlay();
     }
-  }, [currentSong, isPlaying]);
+  }, [currentSong, isPlaying]); // Keeps UI and Audio Engine in sync
 
   /* =========================================================
-     8. STATS TRACKING (LISTENING TIME)
+     8. STATS TRACKING
      ========================================================= */
   useEffect(() => {
     const timer = setInterval(() => {
@@ -351,11 +324,9 @@ export const PlayerProvider = ({ children }) => {
   /* =========================================================
      CONTEXT VALUE PACKAGING
      ========================================================= */
-  const currentSongId = currentSong?.id || null;
-
   const value = useMemo(() => ({
     playlist, currentIndex, currentSong, isPlaying, progress, duration,
-    isLoop, volume, currentSongId, playbackRate, listenedSeconds, isEnhanced,
+    isLoop, volume, playbackRate, listenedSeconds, isEnhanced,
     toggleEnhancedAudio,
     setPlaybackRate: (r) => { 
       setPlaybackRate(r); 
@@ -373,7 +344,7 @@ export const PlayerProvider = ({ children }) => {
       localStorage.setItem("player_volume", v.toString());
     },
     getAnalyzer: () => analyzerNode.current
-  }), [playlist, currentIndex, currentSong, isPlaying, progress, duration, isLoop, volume, currentSongId, playbackRate, listenedSeconds, isEnhanced]);
+  }), [playlist, currentIndex, currentSong, isPlaying, progress, duration, isLoop, volume, playbackRate, listenedSeconds, isEnhanced]);
 
   return (
     <PlayerContext.Provider value={value}>
