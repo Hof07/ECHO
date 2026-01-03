@@ -19,8 +19,8 @@ export const usePlayer = () => useContext(PlayerContext);
 
 export const PlayerProvider = ({ children }) => {
   /* =========================================================
-     AUDIO ENGINE REFS (THE CORE INFRASTRUCTURE)
-     ========================================================= */
+      AUDIO ENGINE REFS (THE CORE INFRASTRUCTURE)
+      ========================================================= */
   const audioRef = useRef(null);
   const audioCtx = useRef(null);
   const sourceNode = useRef(null);
@@ -36,8 +36,8 @@ export const PlayerProvider = ({ children }) => {
   const analyzerNode = useRef(null);
 
   /* =========================================================
-     STATE: CORE ENGINE & PERSISTENCE
-     ========================================================= */
+      STATE: CORE ENGINE & PERSISTENCE
+      ========================================================= */
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentSong, setCurrentSong] = useState(null);
@@ -52,8 +52,8 @@ export const PlayerProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   /* =========================================================
-     1. PERSISTENCE LAYER: HYDRATION
-     ========================================================= */
+      1. PERSISTENCE LAYER: HYDRATION
+      ========================================================= */
   useEffect(() => {
     const savedSong = localStorage.getItem("last_played_song");
     const savedPlaylist = localStorage.getItem("last_playlist");
@@ -84,8 +84,8 @@ export const PlayerProvider = ({ children }) => {
   }, []);
 
   /* =========================================================
-     2. DOLBY ATMOS ENGINE: INITIALIZATION
-     ========================================================= */
+      2. DOLBY ATMOS ENGINE: INITIALIZATION
+      ========================================================= */
   const initSpatialEngine = useCallback(() => {
     if (audioCtx.current) return;
 
@@ -136,8 +136,8 @@ export const PlayerProvider = ({ children }) => {
   }, []);
 
   /* =========================================================
-     3. SPATIAL ENHANCEMENT TOGGLE
-     ========================================================= */
+      3. SPATIAL ENHANCEMENT TOGGLE
+      ========================================================= */
   const toggleEnhancedAudio = useCallback(() => {
     if (!audioCtx.current) initSpatialEngine();
     const newState = !isEnhanced;
@@ -169,8 +169,8 @@ export const PlayerProvider = ({ children }) => {
   }, [isEnhanced, initSpatialEngine]);
 
   /* =========================================================
-     4. CORE PLAYER ACTIONS (FIXED FOR PLAY-ON-NEXT)
-     ========================================================= */
+      4. CORE PLAYER ACTIONS (FIXED FOR PLAY-ON-NEXT)
+      ========================================================= */
   const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -195,7 +195,7 @@ export const PlayerProvider = ({ children }) => {
     }
     setCurrentIndex(index);
     setCurrentSong(song);
-    setIsPlaying(true); // This ensures the useEffect below triggers play()
+    setIsPlaying(true); 
   };
 
   const playNext = useCallback(async () => {
@@ -206,7 +206,7 @@ export const PlayerProvider = ({ children }) => {
     
     setCurrentIndex(nextIdx);
     setCurrentSong(playlist[nextIdx]);
-    setIsPlaying(true); // FORCED TRUE: ensures logic in Section 7 fires
+    setIsPlaying(true); 
   }, [playlist, currentIndex]);
 
   const playPrev = useCallback(async () => {
@@ -217,7 +217,7 @@ export const PlayerProvider = ({ children }) => {
     
     setCurrentIndex(prevIdx);
     setCurrentSong(playlist[prevIdx]);
-    setIsPlaying(true); // FORCED TRUE
+    setIsPlaying(true); 
   }, [playlist, currentIndex]);
 
   const seekTo = useCallback((time) => {
@@ -229,8 +229,8 @@ export const PlayerProvider = ({ children }) => {
   }, []);
 
   /* =========================================================
-     5. NOTIFICATION BAR & MEDIA CONTROL
-     ========================================================= */
+      5. NOTIFICATION BAR & MEDIA CONTROL
+      ========================================================= */
   useEffect(() => {
     if (!currentSong || !("mediaSession" in navigator)) return;
 
@@ -249,24 +249,37 @@ export const PlayerProvider = ({ children }) => {
   }, [currentSong, togglePlay, playNext, playPrev]);
 
   /* =========================================================
-     6. UI SYNC & EVENT LISTENERS
-     ========================================================= */
+      6. UI SYNC & EVENT LISTENERS (FIXED FOR TIME/DURATION)
+      ========================================================= */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const onTimeUpdate = () => setProgress(audio.currentTime);
+    
+    // NEW: Function to capture song length
+    const onLoadedMetadata = () => {
+      if (audio.duration) {
+        setDuration(audio.duration);
+      }
+    };
+
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onEnded = () => { if (!isLoop) playNext(); };
 
+    // Added loadedmetadata and durationchange for 0:00 fix
     audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("durationchange", onLoadedMetadata);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
 
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("durationchange", onLoadedMetadata);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
@@ -274,21 +287,22 @@ export const PlayerProvider = ({ children }) => {
   }, [isLoop, playNext]);
 
   /* =========================================================
-     7. SOURCE LOADING HANDLER (CRITICAL FIX FOR NEXT/PREV)
-     ========================================================= */
+      7. SOURCE LOADING HANDLER (FIXED DURATION RESET)
+      ========================================================= */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentSong) return;
 
-    // 1. Swap source
     const isSameSource = audio.src === currentSong.audio_url;
     if (!isSameSource) {
         audio.pause();
         audio.src = currentSong.audio_url;
+        // Reset progress and duration for the new song
+        setProgress(0);
+        setDuration(0); 
         audio.load();
     }
 
-    // 2. If global isPlaying state is true, force the HTML5 element to play
     if (isPlaying) {
       const executePlay = async () => {
         try {
@@ -297,17 +311,17 @@ export const PlayerProvider = ({ children }) => {
           }
           await audio.play();
         } catch (err) {
-          console.warn("Playback prevented by browser policy", err);
+          console.warn("Playback prevented", err);
           setIsPlaying(false);
         }
       };
       executePlay();
     }
-  }, [currentSong, isPlaying]); // Keeps UI and Audio Engine in sync
+  }, [currentSong, isPlaying]); 
 
   /* =========================================================
-     8. STATS TRACKING
-     ========================================================= */
+      8. STATS TRACKING
+      ========================================================= */
   useEffect(() => {
     const timer = setInterval(() => {
       if (isPlaying) {
@@ -322,8 +336,8 @@ export const PlayerProvider = ({ children }) => {
   }, [isPlaying]);
 
   /* =========================================================
-     CONTEXT VALUE PACKAGING
-     ========================================================= */
+      CONTEXT VALUE PACKAGING
+      ========================================================= */
   const value = useMemo(() => ({
     playlist, currentIndex, currentSong, isPlaying, progress, duration,
     isLoop, volume, playbackRate, listenedSeconds, isEnhanced,
@@ -349,7 +363,8 @@ export const PlayerProvider = ({ children }) => {
   return (
     <PlayerContext.Provider value={value}>
       {children}
-      <audio ref={audioRef} playsInline crossOrigin="anonymous" preload="auto" />
+      {/* Changed preload to "metadata" to fetch duration faster */}
+      <audio ref={audioRef} playsInline crossOrigin="anonymous" preload="metadata" />
     </PlayerContext.Provider>
   );
 };
