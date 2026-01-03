@@ -10,16 +10,12 @@ import React, {
   useMemo,
 } from "react";
 
-/**
- * PLAYER CONTEXT & HOOK
- * Provides a production-grade 3D Audio Engine with Dolby-style Spatial Tuning.
- */
 const PlayerContext = createContext();
 export const usePlayer = () => useContext(PlayerContext);
 
 export const PlayerProvider = ({ children }) => {
   /* =========================================================
-      AUDIO ENGINE REFS (THE CORE INFRASTRUCTURE)
+      AUDIO ENGINE REFS (CORE INFRASTRUCTURE)
       ========================================================= */
   const audioRef = useRef(null);
   const audioCtx = useRef(null);
@@ -52,7 +48,7 @@ export const PlayerProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   /* =========================================================
-      1. PERSISTENCE LAYER: HYDRATION
+      1. PERSISTENCE LAYER: HYDRATION (STOPS RESET ON REFRESH)
       ========================================================= */
   useEffect(() => {
     const savedSong = localStorage.getItem("last_played_song");
@@ -169,7 +165,7 @@ export const PlayerProvider = ({ children }) => {
   }, [isEnhanced, initSpatialEngine]);
 
   /* =========================================================
-      4. CORE PLAYER ACTIONS (FIXED FOR PLAY-ON-NEXT)
+      4. CORE PLAYER ACTIONS
       ========================================================= */
   const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
@@ -201,9 +197,7 @@ export const PlayerProvider = ({ children }) => {
   const playNext = useCallback(async () => {
     if (!playlist.length) return;
     const nextIdx = (currentIndex + 1) % playlist.length;
-    
     if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
-    
     setCurrentIndex(nextIdx);
     setCurrentSong(playlist[nextIdx]);
     setIsPlaying(true); 
@@ -212,9 +206,7 @@ export const PlayerProvider = ({ children }) => {
   const playPrev = useCallback(async () => {
     if (!playlist.length) return;
     const prevIdx = (currentIndex - 1 + playlist.length) % playlist.length;
-    
     if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
-    
     setCurrentIndex(prevIdx);
     setCurrentSong(playlist[prevIdx]);
     setIsPlaying(true); 
@@ -249,18 +241,24 @@ export const PlayerProvider = ({ children }) => {
   }, [currentSong, togglePlay, playNext, playPrev]);
 
   /* =========================================================
-      6. UI SYNC & EVENT LISTENERS (FIXED FOR TIME/DURATION)
+      6. UI SYNC & EVENT LISTENERS
       ========================================================= */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const onTimeUpdate = () => setProgress(audio.currentTime);
+    const onTimeUpdate = () => {
+        setProgress(audio.currentTime);
+        // Save timestamp frequently so if they navigate/refresh they don't lose spot
+        localStorage.setItem("last_timestamp", audio.currentTime.toString());
+    };
     
-    // NEW: Function to capture song length
     const onLoadedMetadata = () => {
-      if (audio.duration) {
-        setDuration(audio.duration);
+      if (audio.duration) setDuration(audio.duration);
+      // Resume from last saved time if this is the first load
+      if (lastTimeRef.current > 0) {
+        audio.currentTime = lastTimeRef.current;
+        lastTimeRef.current = 0; // Reset so it doesn't loop back on next song
       }
     };
 
@@ -268,7 +266,6 @@ export const PlayerProvider = ({ children }) => {
     const onPause = () => setIsPlaying(false);
     const onEnded = () => { if (!isLoop) playNext(); };
 
-    // Added loadedmetadata and durationchange for 0:00 fix
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("durationchange", onLoadedMetadata);
@@ -287,7 +284,7 @@ export const PlayerProvider = ({ children }) => {
   }, [isLoop, playNext]);
 
   /* =========================================================
-      7. SOURCE LOADING HANDLER (FIXED DURATION RESET)
+      7. SOURCE LOADING HANDLER (CRITICAL FOR CONTINUITY)
       ========================================================= */
   useEffect(() => {
     const audio = audioRef.current;
@@ -295,9 +292,7 @@ export const PlayerProvider = ({ children }) => {
 
     const isSameSource = audio.src === currentSong.audio_url;
     if (!isSameSource) {
-        audio.pause();
         audio.src = currentSong.audio_url;
-        // Reset progress and duration for the new song
         setProgress(0);
         setDuration(0); 
         audio.load();
@@ -363,8 +358,15 @@ export const PlayerProvider = ({ children }) => {
   return (
     <PlayerContext.Provider value={value}>
       {children}
-      {/* Changed preload to "metadata" to fetch duration faster */}
-      <audio ref={audioRef} playsInline crossOrigin="anonymous" preload="metadata" />
+      {/* This audio tag stays mounted because it's inside the Provider 
+        which wraps your whole app layout. 
+      */}
+      <audio 
+        ref={audioRef} 
+        playsInline 
+        crossOrigin="anonymous" 
+        preload="metadata" 
+      />
     </PlayerContext.Provider>
   );
 };
