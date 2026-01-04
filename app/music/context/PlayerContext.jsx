@@ -334,14 +334,28 @@ export const PlayerProvider = ({ children }) => {
       CONTEXT VALUE PACKAGING
       ========================================================= */
   const value = useMemo(() => ({
-    playlist, currentIndex, currentSong, isPlaying, progress, duration,
-    isLoop, volume, playbackRate, listenedSeconds, isEnhanced,
+    playlist, 
+    currentIndex, 
+    currentSong, 
+    currentSongId: currentSong?.id || null, // ADDED THIS LINE
+    isPlaying, 
+    progress, 
+    duration,
+    isLoop, 
+    volume, 
+    playbackRate, 
+    listenedSeconds, 
+    isEnhanced,
     toggleEnhancedAudio,
     setPlaybackRate: (r) => { 
       setPlaybackRate(r); 
       if(audioRef.current) audioRef.current.playbackRate = r; 
     },
-    playSong, togglePlay, playNext, playPrev, seekTo,
+    playSong, 
+    togglePlay, 
+    playNext, 
+    playPrev, 
+    seekTo,
     toggleLoop: () => {
       const next = !isLoop;
       setIsLoop(next);
@@ -353,14 +367,15 @@ export const PlayerProvider = ({ children }) => {
       localStorage.setItem("player_volume", v.toString());
     },
     getAnalyzer: () => analyzerNode.current
-  }), [playlist, currentIndex, currentSong, isPlaying, progress, duration, isLoop, volume, playbackRate, listenedSeconds, isEnhanced]);
+  }), [
+    playlist, currentIndex, currentSong, isPlaying, progress, duration, 
+    isLoop, volume, playbackRate, listenedSeconds, isEnhanced,
+    currentSong?.id // ADDED TO DEPENDENCY ARRAY
+  ]);
 
   return (
     <PlayerContext.Provider value={value}>
       {children}
-      {/* This audio tag stays mounted because it's inside the Provider 
-        which wraps your whole app layout. 
-      */}
       <audio 
         ref={audioRef} 
         playsInline 
