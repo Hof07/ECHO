@@ -518,7 +518,7 @@ export default function MusicPlayer() {
         {/* Time Labels */}
         <div className="flex justify-between text-[10px] mt-1 opacity-75">
           <span>{formatTime(progress)}</span>
-          <span>-{formatTime(duration)}</span>
+          <span>- {formatTime(duration)}</span>
         </div>
 
         {/* --- Controls and Info --- */}
