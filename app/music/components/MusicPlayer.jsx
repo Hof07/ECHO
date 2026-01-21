@@ -23,7 +23,6 @@ import {
   // Shuffle, // Not used in the provided code
 } from "lucide-react";
 import SleepTimerModal from "./SleepTimerModal";
-import DolbySvg from "./DolbySvg";
 
 // --- UTILITY FUNCTION RE-DEFINITION ---
 const formatTime = (sec) => {
@@ -110,7 +109,7 @@ const FullScreenPlayer = ({
         background: `linear-gradient(160deg, ${dominantColor}, #000)`,
       }}
     >
-      {/* 🔘 Exit Fullscreen Button (Top-Right) */}
+      {/*  Exit Fullscreen Button (Top-Right) */}
       <button
         onClick={toggleFullscreen}
         className="absolute top-2 sm:top-4 cursor-pointer right-2 sm:right-4 p-2 sm:p-3 rounded-full hover:bg-white/20 
@@ -120,7 +119,7 @@ const FullScreenPlayer = ({
       >
         <Minimize className="w-4 h-4 sm:w-6 sm:h-6 opacity-90 hover:opacity-100" />
       </button>
-      {/* 🎵 Glass Card (Responsive to Max Width) */}
+      {/*  Glass Card (Responsive to Max Width) */}
       <div
         className="
           w-full max-w-sm text-white rounded-3xl p-6 flex flex-col justify-between 
@@ -187,7 +186,13 @@ const FullScreenPlayer = ({
             onClick={handlePrevClick}
             className="opacity-70 cursor-pointer hover:opacity-100"
           >
-            <SkipBack className="w-7 h-7" />
+            {/* <SkipBack className="w-7 h-7" /> */}
+            <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11.5 5.51515C11.5 4.39414 10.2523 3.72758 9.32432 4.3546L1.87121 9.38945C1.04543 9.94741 1.04543 11.1643 1.87121 11.7223L9.32432 16.7571C10.2523 17.3842 11.5 16.7176 11.5 15.5966V5.51515Z"
+                fill="#fff" />
+              <path d="M22.5 5.51515C22.5 4.39414 21.2523 3.72758 20.3243 4.3546L12.8712 9.38945C12.0454 9.94741 12.0454 11.1643 12.8712 11.7223L20.3243 16.7571C21.2523 17.3842 22.5 16.7176 22.5 15.5966V5.51515Z"
+                fill="#fff" />
+            </svg>
           </button>
 
           <button
@@ -205,7 +210,13 @@ const FullScreenPlayer = ({
             onClick={playNext}
             className="opacity-70 cursor-pointer hover:opacity-100"
           >
-            <SkipForward className="w-7 h-7" />
+            {/* <SkipForward className="w-7 h-7" /> */}
+            <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.5 5.51515C12.5 4.39414 13.7477 3.72758 14.6757 4.3546L22.1288 9.38945C22.9546 9.94741 22.9546 11.1643 22.1288 11.7223L14.6757 16.7571C13.7477 17.3842 12.5 16.7176 12.5 15.5966V5.51515Z"
+                fill="#fff" />
+              <path d="M1.5 5.51515C1.5 4.39414 2.74768 3.72758 3.67568 4.3546L11.1288 9.38945C11.9546 9.94741 11.9546 11.1643 11.1288 11.7223L3.67568 16.7571C2.74768 17.3842 1.5 16.7176 1.5 15.5966V5.51515Z"
+                fill="#fff" />
+            </svg>
           </button>
 
           <button
@@ -507,7 +518,7 @@ export default function MusicPlayer() {
         {/* Time Labels */}
         <div className="flex justify-between text-[10px] mt-1 opacity-75">
           <span>{formatTime(progress)}</span>
-          <span>- {formatTime(duration)}</span>
+          <span>-{formatTime(duration)}</span>
         </div>
 
         {/* --- Controls and Info --- */}
@@ -563,8 +574,8 @@ export default function MusicPlayer() {
               onClick={toggleEnhancedAudio}
               title="Enhanced Audio (Dolby + Bass)"
               className={`p-2 rounded-full flex flex-col cursor-pointer items-center gap-1 transition-all duration-500 ${isEnhanced
-                  ? "bg-[#fa4565]/20 text-[#fa4565] scale-110"
-                  : "text-gray-400 hover:text-white"
+                ? "bg-[#fa4565]/20 text-[#fa4565] scale-110"
+                : "text-gray-400 hover:text-white"
                 }`}
             >
               {/* Dolby SVG Icon */}
