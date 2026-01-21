@@ -167,7 +167,7 @@ const FullScreenPlayer = ({
 
           <div className="flex justify-between text-xs opacity-75 mt-2">
             <span>{formatTime(progress)}</span>
-            <span>{formatTime(duration - progress)}</span>
+            <span>- {formatTime(duration - progress)}</span>
           </div>
         </div>
 
@@ -507,7 +507,7 @@ export default function MusicPlayer() {
         {/* Time Labels */}
         <div className="flex justify-between text-[10px] mt-1 opacity-75">
           <span>{formatTime(progress)}</span>
-          <span>{formatTime(duration)}</span>
+          <span>- {formatTime(duration)}</span>
         </div>
 
         {/* --- Controls and Info --- */}
