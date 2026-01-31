@@ -226,7 +226,7 @@ transition-all duration-200 select-none ${
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Music2 className="w-7 h-7 text-[#fa4565]" />
-          <h2 className="text-3xl font-extrabold">Top Hits & Trending</h2>
+          <h2 className="text-3xl font-extrabold">Your Music</h2>
         </div>
 
         <div className="flex gap-2">
