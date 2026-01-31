@@ -22,10 +22,22 @@ function SongsSection() {
       const { data, error } = await supabase
         .from("songs")
         .select("id,title,cover_url,duration,audio_url,artist_name")
-        .eq("isOther", false)
-        .order("title", { ascending: true });
+        .eq("isOther", false);
 
-      if (!error) setSongs(data);
+      if (!error && data) {
+        // --- LOCAL STORAGE SORTING LOGIC ---
+        const stats = JSON.parse(localStorage.getItem("song_stats") || "{}");
+        
+        const sortedSongs = [...data].sort((a, b) => {
+          const countA = stats[a.id] || 0;
+          const countB = stats[b.id] || 0;
+          // Sort by listen count (descending), then alphabetically by title
+          if (countB !== countA) return countB - countA;
+          return a.title.localeCompare(b.title);
+        });
+
+        setSongs(sortedSongs);
+      }
       setIsLoading(false);
     };
 
@@ -43,7 +55,14 @@ function SongsSection() {
     }
   }, [currentSongId]);
 
-  const handlePlay = (song, index) => playSong(song, index, songs);
+  const handlePlay = (song, index) => {
+    // --- UPDATE LISTEN COUNT ---
+    const stats = JSON.parse(localStorage.getItem("song_stats") || "{}");
+    stats[song.id] = (stats[song.id] || 0) + 1;
+    localStorage.setItem("song_stats", JSON.stringify(stats));
+    
+    playSong(song, index, songs);
+  };
 
   const formatDuration = (seconds) =>
     !seconds || isNaN(seconds)
@@ -72,7 +91,6 @@ border-b border-[#222] py-2 md:py-3 px-3 md:px-4 sticky top-0 bg-[#121212] z-10"
           <div className="max-h-[75vh] overflow-y-scroll pb-40">
             {songs.map((song, i) => {
               const isActive = song.id === currentSongId;
-              // console.log(currentSongId);
               return (
                 <div
                   key={song.id}
@@ -90,12 +108,9 @@ transition-all duration-200 select-none ${
                   <div className="relative flex items-center justify-center w-4 h-4 group">
                     {!isActive ? (
                       <>
-                        {/* Number → fade out on hover */}
                         <span className="transition-all duration-200 group-hover:opacity-0 group-hover:scale-0">
                           {i + 1}
                         </span>
-
-                        {/* Play Icon → fade in on hover */}
                         <Play
                           className="w-4 h-4 absolute opacity-0 fill-[#fa4565] scale-0 transition-all duration-200
                    group-hover:opacity-100 group-hover:scale-100"
@@ -164,7 +179,6 @@ transition-all duration-200 select-none ${
                   : "bg-[#121212] hover:bg-[#1b1b1b]"
               }`}
               >
-                {/* Cover */}
                 <div className="relative rounded-lg overflow-hidden">
                   <img
                     loading="lazy"
@@ -172,7 +186,6 @@ transition-all duration-200 select-none ${
                     className="w-full aspect-square object-cover"
                   />
 
-                  {/* Hover Overlay */}
                   {!isActive && (
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex justify-center items-center">
                       <button className="bg-[#fa4565] cursor-pointer w-12 h-12 rounded-full flex items-center justify-center scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300 shadow-lg">
@@ -181,7 +194,6 @@ transition-all duration-200 select-none ${
                     </div>
                   )}
 
-                  {/* Active Equalizer Animation */}
                   {isActive && (
                     <div className="absolute inset-0 bg-black/40 flex justify-center items-center rotate-180">
                       <div className="flex gap-[3px]">
@@ -197,7 +209,6 @@ transition-all duration-200 select-none ${
                   )}
                 </div>
 
-                {/* Title + Artist */}
                 <p className="font-bold mt-4 truncate">{song.title}</p>
                 <p className="text-sm text-gray-400 truncate">
                   {song.artist_name}
