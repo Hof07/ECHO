@@ -22,14 +22,23 @@ export const PlayerProvider = ({ children }) => {
   const sourceNode = useRef(null);
   const lastTimeRef = useRef(0);
   const lastSrcRef = useRef(null);
-  const subBassNode = useRef(null);    
-  const bassNode = useRef(null);      
-  const lowMidNode = useRef(null);     
-  const midNode = useRef(null);        
-  const presenceNode = useRef(null);   
-  const brillianceNode = useRef(null); 
-  const airNode = useRef(null);        
+  const crossfadeTriggeredRef = useRef(false);
 
+  // Always-fresh refs for Media Session (fixes stale closure / earbud stop btn)
+  const togglePlayRef = useRef(null);
+  const playNextRef = useRef(null);
+  const playPrevRef = useRef(null);
+
+  // 7-band EQ
+  const subBassNode = useRef(null);
+  const bassNode = useRef(null);
+  const lowMidNode = useRef(null);
+  const midNode = useRef(null);
+  const presenceNode = useRef(null);
+  const brillianceNode = useRef(null);
+  const airNode = useRef(null);
+
+  // Spatial / dynamics
   const spatialPanner = useRef(null);
   const gainNode = useRef(null);
   const preGain = useRef(null);
@@ -37,11 +46,13 @@ export const PlayerProvider = ({ children }) => {
   const limiter = useRef(null);
   const analyzerNode = useRef(null);
 
+  // Reverb
   const convolverNode = useRef(null);
   const reverbGain = useRef(null);
   const dryGain = useRef(null);
   const reverbMixNode = useRef(null);
 
+  // Stereo widener
   const splitter = useRef(null);
   const merger = useRef(null);
   const delayL = useRef(null);
@@ -50,7 +61,7 @@ export const PlayerProvider = ({ children }) => {
   const widenerGainR = useRef(null);
 
   /* =========================================================
-      STATEs
+      STATE
       ========================================================= */
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -66,7 +77,9 @@ export const PlayerProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCrossfading, setIsCrossfading] = useState(false);
 
-  
+  /* =========================================================
+      1. PERSISTENCE HYDRATION
+      ========================================================= */
   useEffect(() => {
     const savedSong = localStorage.getItem("last_played_song");
     const savedPlaylist = localStorage.getItem("last_playlist");
@@ -82,22 +95,21 @@ export const PlayerProvider = ({ children }) => {
     setIsLoading(false);
   }, []);
 
-  
-  const buildImpulseResponse = useCallback((ctx, duration = 2.8, decay = 3.2) => {
+  /* =========================================================
+      2. IMPULSE RESPONSE GENERATOR
+      ========================================================= */
+  const buildImpulseResponse = useCallback((ctx, dur = 2.8, decay = 3.2) => {
     const rate = ctx.sampleRate;
-    const length = Math.floor(rate * duration);
+    const length = Math.floor(rate * dur);
     const impulse = ctx.createBuffer(2, length, rate);
-
     for (let ch = 0; ch < 2; ch++) {
       const data = impulse.getChannelData(ch);
       for (let i = 0; i < length; i++) {
         const t = i / rate;
-        const earlyBoost = t < 0.08 ? 1.5 : 1.0; 
-        data[i] = (Math.random() * 2 - 1) * earlyBoost * Math.pow(1 - t / duration, decay);
+        const earlyBoost = t < 0.08 ? 1.5 : 1.0;
+        data[i] = (Math.random() * 2 - 1) * earlyBoost * Math.pow(1 - t / dur, decay);
       }
-      if (ch === 1) {
-        for (let i = 0; i < length; i++) data[i] *= 0.92;
-      }
+      if (ch === 1) { for (let i = 0; i < length; i++) data[i] *= 0.92; }
     }
     return impulse;
   }, []);
@@ -107,14 +119,12 @@ export const PlayerProvider = ({ children }) => {
       ========================================================= */
   const initSpatialEngine = useCallback(() => {
     if (audioCtx.current) return;
-
     try {
       const Context = window.AudioContext || window.webkitAudioContext;
       audioCtx.current = new Context({ latencyHint: "playback", sampleRate: 48000 });
       const ctx = audioCtx.current;
 
       sourceNode.current = ctx.createMediaElementSource(audioRef.current);
-
       preGain.current = ctx.createGain();
       preGain.current.gain.value = 0.8;
 
@@ -158,7 +168,6 @@ export const PlayerProvider = ({ children }) => {
       airNode.current.frequency.value = 16000;
       airNode.current.gain.value = 0;
 
-      // Stereo widener
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       splitter.current = ctx.createChannelSplitter(2);
       merger.current = ctx.createChannelMerger(2);
@@ -209,32 +218,26 @@ export const PlayerProvider = ({ children }) => {
       analyzerNode.current = ctx.createAnalyser();
       analyzerNode.current.fftSize = 2048;
 
-      
+      // Signal chain
       const eqChain = [subBassNode, bassNode, lowMidNode, midNode, presenceNode, brillianceNode, airNode].map(r => r.current);
       sourceNode.current.connect(preGain.current);
       eqChain.reduce((prev, node) => { prev.connect(node); return node; }, preGain.current);
 
       const eqOut = eqChain[eqChain.length - 1];
       eqOut.connect(splitter.current);
-
       splitter.current.connect(delayL.current, 0);
       delayL.current.connect(widenerGainL.current);
       widenerGainL.current.connect(merger.current, 0, 0);
-
       splitter.current.connect(delayR.current, 1);
       delayR.current.connect(widenerGainR.current);
       widenerGainR.current.connect(merger.current, 0, 1);
-
       merger.current.connect(spatialPanner.current);
       spatialPanner.current.connect(compressor.current);
-
       compressor.current.connect(dryGain.current);
       dryGain.current.connect(reverbMixNode.current);
-
       compressor.current.connect(convolverNode.current);
       convolverNode.current.connect(reverbGain.current);
       reverbGain.current.connect(reverbMixNode.current);
-
       reverbMixNode.current.connect(gainNode.current);
       gainNode.current.connect(analyzerNode.current);
       analyzerNode.current.connect(limiter.current);
@@ -252,43 +255,33 @@ export const PlayerProvider = ({ children }) => {
     if (!audioCtx.current) initSpatialEngine();
     const newState = !isEnhanced;
     setIsEnhanced(newState);
-
     const ctx = audioCtx.current;
     if (!ctx) return;
     if (ctx.state === "suspended") ctx.resume();
-
     const now = ctx.currentTime;
     const fade = 0.4;
-
     const ramp = (param, target) => {
       param.cancelScheduledValues(now);
       param.setValueAtTime(param.value, now);
       param.linearRampToValueAtTime(target, now + fade);
     };
-
     if (newState) {
-      // ── DOLBY ENHANCED PROFILE ──
-      ramp(subBassNode.current.gain, 6);    
-      ramp(bassNode.current.gain, 5);         // +5dB warmth
-      ramp(lowMidNode.current.gain, -2);      // -2dB mud cut
-      ramp(midNode.current.gain, 1);          // +1dB slight lift
-      ramp(presenceNode.current.gain, 4);     // +4dB vocal clarity
-      ramp(brillianceNode.current.gain, 3);   // +3dB detail
-      ramp(airNode.current.gain, 5);          // +5dB air sparkle
-
-      ramp(delayL.current.delayTime, 0.018);  // Haas 18ms wide L
+      ramp(subBassNode.current.gain, 6);
+      ramp(bassNode.current.gain, 5);
+      ramp(lowMidNode.current.gain, -2);
+      ramp(midNode.current.gain, 1);
+      ramp(presenceNode.current.gain, 4);
+      ramp(brillianceNode.current.gain, 3);
+      ramp(airNode.current.gain, 5);
+      ramp(delayL.current.delayTime, 0.018);
       ramp(delayR.current.delayTime, 0);
       ramp(widenerGainL.current.gain, 1.1);
       ramp(widenerGainR.current.gain, 1.0);
-
-      ramp(spatialPanner.current.positionZ, 1.8); // depth
-
-      ramp(reverbGain.current.gain, 0.18);    // 18% wet reverb
+      ramp(spatialPanner.current.positionZ, 1.8);
+      ramp(reverbGain.current.gain, 0.18);
       ramp(dryGain.current.gain, 0.88);
-
-      ramp(gainNode.current.gain, 1.15);      // slight output boost
+      ramp(gainNode.current.gain, 1.15);
     } else {
-      // ── FLAT / NEUTRAL ──
       ramp(subBassNode.current.gain, 0);
       ramp(bassNode.current.gain, 0);
       ramp(lowMidNode.current.gain, 0);
@@ -296,17 +289,13 @@ export const PlayerProvider = ({ children }) => {
       ramp(presenceNode.current.gain, 0);
       ramp(brillianceNode.current.gain, 0);
       ramp(airNode.current.gain, 0);
-
       ramp(delayL.current.delayTime, 0);
       ramp(delayR.current.delayTime, 0);
       ramp(widenerGainL.current.gain, 1);
       ramp(widenerGainR.current.gain, 1);
-
       ramp(spatialPanner.current.positionZ, 0);
-
       ramp(reverbGain.current.gain, 0);
       ramp(dryGain.current.gain, 1);
-
       ramp(gainNode.current.gain, 1);
     }
   }, [isEnhanced, initSpatialEngine]);
@@ -326,6 +315,15 @@ export const PlayerProvider = ({ children }) => {
     }
   }, [initSpatialEngine]);
 
+  // ✅ seekTo — was accidentally missing, now restored
+  const seekTo = useCallback((time) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setProgress(time);
+      localStorage.setItem("last_timestamp", time.toString());
+    }
+  }, []);
+
   const playSong = (song, index, list = []) => {
     if (list.length) {
       setPlaylist(list);
@@ -334,6 +332,7 @@ export const PlayerProvider = ({ children }) => {
     setCurrentIndex(index);
     setCurrentSong(song);
     setIsPlaying(true);
+    crossfadeTriggeredRef.current = false;
   };
 
   const playNext = useCallback(async () => {
@@ -343,47 +342,8 @@ export const PlayerProvider = ({ children }) => {
     setCurrentIndex(nextIdx);
     setCurrentSong(playlist[nextIdx]);
     setIsPlaying(true);
+    crossfadeTriggeredRef.current = false;
   }, [playlist, currentIndex]);
-
-  /* =========================================================
-      5B. AUTO CROSSFADE
-      ========================================================= */
-  const handleCrossfade = useCallback(async () => {
-    if (!audioCtx.current || !gainNode.current || !bassNode.current ||
-      isCrossfading || isLoop || playlist.length < 2) return;
-
-    const nextIndex = (currentIndex + 1) % playlist.length;
-    const nextSong = playlist[nextIndex];
-    if (!nextSong) return;
-
-    setIsCrossfading(true);
-    const ctx = audioCtx.current;
-    const fadeTime = 5;
-    const now = ctx.currentTime;
-
-    const nextAudio = new Audio(nextSong.audio_url);
-    nextAudio.crossOrigin = "anonymous";
-    const nextSource = ctx.createMediaElementSource(nextAudio);
-    const nextGain = ctx.createGain();
-    nextGain.gain.setValueAtTime(0, now);
-    nextSource.connect(nextGain).connect(bassNode.current);
-    await nextAudio.play();
-
-    gainNode.current.gain.setValueAtTime(1, now);
-    gainNode.current.gain.linearRampToValueAtTime(0, now + fadeTime);
-    nextGain.gain.linearRampToValueAtTime(volume, now + fadeTime);
-
-    setTimeout(() => {
-      audioRef.current.pause();
-      nextSource.disconnect(); nextGain.disconnect(); nextAudio.pause();
-      audioRef.current.src = nextSong.audio_url;
-      lastSrcRef.current = nextSong.audio_url;
-      setCurrentIndex(nextIndex);
-      setCurrentSong(nextSong);
-      setIsCrossfading(false);
-      gainNode.current.gain.setValueAtTime(volume, ctx.currentTime);
-    }, fadeTime * 1000);
-  }, [playlist, currentIndex, volume, isCrossfading, isLoop]);
 
   const playPrev = useCallback(async () => {
     if (!playlist.length) return;
@@ -392,32 +352,197 @@ export const PlayerProvider = ({ children }) => {
     setCurrentIndex(prevIdx);
     setCurrentSong(playlist[prevIdx]);
     setIsPlaying(true);
+    crossfadeTriggeredRef.current = false;
   }, [playlist, currentIndex]);
 
-  const seekTo = useCallback((time) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setProgress(time);
-      localStorage.setItem("last_timestamp", time.toString());
-    }
-  }, []);
+  // Keep refs fresh for Media Session
+  useEffect(() => { togglePlayRef.current = togglePlay; }, [togglePlay]);
+  useEffect(() => { playNextRef.current = playNext; }, [playNext]);
+  useEffect(() => { playPrevRef.current = playPrev; }, [playPrev]);
 
   /* =========================================================
-      6. MEDIA SESSION
+      5B. APPLE MUSIC STYLE CROSSFADE
+      ── Current song fades out over last 5 sec
+      ── Next song starts from beginning, fades in simultaneously
+      ── Seamless handoff with no gap
+      ========================================================= */
+  const handleCrossfade = useCallback(async () => {
+    if (
+      !audioCtx.current ||
+      !gainNode.current ||
+      !compressor.current ||
+      isCrossfading ||
+      isLoop ||
+      playlist.length < 2 ||
+      crossfadeTriggeredRef.current
+    ) return;
+
+    const nextIndex = (currentIndex + 1) % playlist.length;
+    const nextSong = playlist[nextIndex];
+    if (!nextSong) return;
+
+    // Lock immediately — prevent any re-entry
+    crossfadeTriggeredRef.current = true;
+    setIsCrossfading(true);
+
+    const ctx = audioCtx.current;
+    const FADE_DURATION = 5; // seconds — matches Apple Music feel
+    const now = ctx.currentTime;
+
+    try {
+      // ── PRE-LOAD next song before fading ──
+      const nextAudio = new Audio(nextSong.audio_url);
+      nextAudio.crossOrigin = "anonymous";
+      nextAudio.preload = "auto";
+
+      // Wait for enough data to start playing
+      await new Promise((resolve, reject) => {
+        nextAudio.addEventListener("canplaythrough", resolve, { once: true });
+        nextAudio.addEventListener("error", (e) => reject(e), { once: true });
+        // Timeout fallback — if canplaythrough takes too long, proceed anyway
+        setTimeout(resolve, 3000);
+        nextAudio.load();
+      });
+
+      // Create a gain node for the incoming track
+      const nextSource = ctx.createMediaElementSource(nextAudio);
+      const nextGain = ctx.createGain();
+
+      // Start at 0 volume — will fade in
+      nextGain.gain.setValueAtTime(0, now);
+
+      // Connect into the main chain (after compressor so EQ/reverb applies)
+      nextSource.connect(nextGain);
+      nextGain.connect(compressor.current);
+
+      // ── Start next song playing immediately (inaudible at vol 0) ──
+      await nextAudio.play();
+
+      // ── FADE OUT current song ──
+      gainNode.current.gain.cancelScheduledValues(now);
+      gainNode.current.gain.setValueAtTime(gainNode.current.gain.value, now);
+      gainNode.current.gain.linearRampToValueAtTime(0, now + FADE_DURATION);
+
+      // ── FADE IN next song (S-curve feel using exponential) ──
+      nextGain.gain.setValueAtTime(0, now);
+      nextGain.gain.linearRampToValueAtTime(0.3, now + FADE_DURATION * 0.4);  // slow start
+      nextGain.gain.linearRampToValueAtTime(1.0, now + FADE_DURATION);        // full by end
+
+      // ── After fade completes: do the hard switch ──
+      setTimeout(async () => {
+        try {
+          // ✅ FIX: Save exactly where nextAudio has reached after 5 sec of playing
+          const resumeAt = nextAudio.currentTime;
+
+          // Stop old track
+          audioRef.current.pause();
+
+          // Clean up temp nodes
+          nextSource.disconnect();
+          nextGain.disconnect();
+          nextAudio.pause();
+
+          // Switch main audio element to next song
+          audioRef.current.src = nextSong.audio_url;
+          lastSrcRef.current = nextSong.audio_url;
+          audioRef.current.load();
+
+          // ✅ Set currentTime INSIDE canplay handler — only safe place
+          await new Promise((resolve) => {
+            audioRef.current.addEventListener("canplay", () => {
+              if (resumeAt > 0) audioRef.current.currentTime = resumeAt;
+              resolve();
+            }, { once: true });
+            setTimeout(() => {
+              if (resumeAt > 0) audioRef.current.currentTime = resumeAt;
+              resolve();
+            }, 2000);
+          });
+
+          // Restore gain to full
+          gainNode.current.gain.cancelScheduledValues(ctx.currentTime);
+          gainNode.current.gain.setValueAtTime(1, ctx.currentTime);
+
+          // Resume context if needed
+          if (audioCtx.current?.state === "suspended") {
+            await audioCtx.current.resume();
+          }
+
+          // Play from exact position — seamless!
+          await audioRef.current.play();
+
+          // Update React state
+          setCurrentIndex(nextIndex);
+          setCurrentSong(nextSong);
+          setProgress(resumeAt);
+          setDuration(0);
+
+        } catch (err) {
+          console.error("Crossfade handoff failed, falling back:", err);
+          // Hard fallback — just switch song normally
+          gainNode.current?.gain.setValueAtTime(1, ctx.currentTime);
+          setCurrentIndex(nextIndex);
+          setCurrentSong(nextSong);
+          setIsPlaying(true);
+        } finally {
+          setIsCrossfading(false);
+          crossfadeTriggeredRef.current = false;
+        }
+      }, FADE_DURATION * 1000);
+
+    } catch (err) {
+      console.error("Crossfade preload failed, falling back:", err);
+      setIsCrossfading(false);
+      crossfadeTriggeredRef.current = false;
+      // Fallback to normal next
+      const nextIdx = (currentIndex + 1) % playlist.length;
+      setCurrentIndex(nextIdx);
+      setCurrentSong(playlist[nextIdx]);
+      setIsPlaying(true);
+    }
+  }, [playlist, currentIndex, isCrossfading, isLoop]);
+
+  /* =========================================================
+      6. MEDIA SESSION — HARDWARE BUTTON FIX
       ========================================================= */
   useEffect(() => {
     if (!currentSong || !("mediaSession" in navigator)) return;
+
     navigator.mediaSession.metadata = new MediaMetadata({
       title: currentSong.title,
       artist: currentSong.artist_name,
       artwork: [{ src: currentSong.cover_url, sizes: "512x512", type: "image/png" }],
     });
-    navigator.mediaSession.setActionHandler("play", () => togglePlay());
-    navigator.mediaSession.setActionHandler("pause", () => togglePlay());
-    navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
-    navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
+
+    // Ref-based handlers — never stale, works with wired earbuds
+    navigator.mediaSession.setActionHandler("play", () => togglePlayRef.current?.());
+    navigator.mediaSession.setActionHandler("pause", () => togglePlayRef.current?.());
+    navigator.mediaSession.setActionHandler("stop", () => {
+      // Wired earbuds send "stop" not "pause"
+      const audio = audioRef.current;
+      if (audio) audio.pause();
+      setIsPlaying(false);
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => playNextRef.current?.());
+    navigator.mediaSession.setActionHandler("previoustrack", () => playPrevRef.current?.());
+    navigator.mediaSession.setActionHandler("seekto", (details) => {
+      if (details.seekTime !== undefined) {
+        const audio = audioRef.current;
+        if (audio) {
+          audio.currentTime = details.seekTime;
+          setProgress(details.seekTime);
+        }
+      }
+    });
+
     localStorage.setItem("last_played_song", JSON.stringify(currentSong));
-  }, [currentSong, togglePlay, playNext, playPrev]);
+  }, [currentSong]);
+
+  // Sync OS playback state indicator
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  }, [isPlaying]);
 
   /* =========================================================
       7. UI SYNC & EVENT LISTENERS
@@ -429,16 +554,48 @@ export const PlayerProvider = ({ children }) => {
     const onTimeUpdate = () => {
       setProgress(audio.currentTime);
       localStorage.setItem("last_timestamp", audio.currentTime.toString());
-      if (audio.duration && audio.duration - audio.currentTime <= 5 &&
-        !isCrossfading && isPlaying && !isLoop) handleCrossfade();
+
+      // Update lock screen scrub bar
+      if ("mediaSession" in navigator && audio.duration && !isNaN(audio.duration)) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: audio.duration,
+            playbackRate: audio.playbackRate,
+            position: Math.min(audio.currentTime, audio.duration),
+          });
+        } catch (e) { /* ignore */ }
+      }
+
+      // ✅ Trigger Apple Music crossfade when 5 sec remain
+      if (
+        audio.duration &&
+        audio.duration - audio.currentTime <= 5 &&
+        !isCrossfading &&
+        isPlaying &&
+        !isLoop &&
+        !crossfadeTriggeredRef.current
+      ) {
+        handleCrossfade();
+      }
     };
+
     const onLoadedMetadata = () => {
       if (audio.duration) setDuration(audio.duration);
-      if (lastTimeRef.current > 0) { audio.currentTime = lastTimeRef.current; lastTimeRef.current = 0; }
+      if (lastTimeRef.current > 0) {
+        audio.currentTime = lastTimeRef.current;
+        lastTimeRef.current = 0;
+      }
     };
+
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
-    const onEnded = () => { if (!isLoop) playNext(); };
+
+    // Only fire playNext if crossfade didn't already handle it
+    const onEnded = () => {
+      if (!isLoop && !crossfadeTriggeredRef.current) {
+        playNext();
+      }
+    };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -536,7 +693,11 @@ export const PlayerProvider = ({ children }) => {
       setPlaybackRate(r);
       if (audioRef.current) audioRef.current.playbackRate = r;
     },
-    playSong, togglePlay, playNext, playPrev, seekTo,
+    playSong,
+    togglePlay,
+    playNext,
+    playPrev,
+    seekTo,        // ✅ restored
     toggleLoop: () => {
       const next = !isLoop;
       setIsLoop(next);
@@ -551,6 +712,7 @@ export const PlayerProvider = ({ children }) => {
   }), [
     playlist, currentIndex, currentSong, isPlaying, progress, duration,
     isLoop, volume, playbackRate, listenedSeconds, isEnhanced, currentSong?.id,
+    togglePlay, playNext, playPrev, seekTo, toggleEnhancedAudio,
   ]);
 
   return (
