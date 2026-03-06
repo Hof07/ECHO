@@ -13,104 +13,172 @@ import React, {
 const PlayerContext = createContext();
 export const usePlayer = () => useContext(PlayerContext);
 
+/* =============================================================
+    DEVICE ENGINE CONFIGS
+    ─────────────────────────────────────────────────────────────
+    DESKTOP_ENGINE  → Original full-quality Dolby Atmos settings
+    MOBILE_ENGINE   → Lightweight, no crackling
+   ============================================================= */
+const DESKTOP_ENGINE = {
+  sampleRate:  48000,
+  latencyHint: "playback",
+  preGain:     0.8,
+  panningModel: "HRTF",
+  impulse:     { duration: 2.8, decay: 3.2 },
+  compressor:  { threshold: -24, knee: 12, ratio: 4,  release: 0.15 },
+  limiter:     { threshold: -1.0 },
+  fftSize:     2048,
+  crossfadeDuration: 5,
+  enhance: {
+    subBass:    6,
+    bass:       5,
+    lowMid:    -2,
+    mid:        1,
+    presence:   4,
+    brilliance: 3,
+    air:        5,
+    delayL:     0.018,
+    delayR:     0,
+    gainL:      1.1,
+    gainR:      1.0,
+    pannerZ:    1.8,
+    reverbWet:  0.18,
+    dryGain:    0.88,
+    outputGain: 1.15,
+  },
+};
+
+const MOBILE_ENGINE = {
+  sampleRate:  44100,           // native phone DAC — avoids OS resampling jitter
+  latencyHint: "interactive",
+  preGain:     0.7,             // lower headroom, phone DACs clip early
+  panningModel: "equalpower",   // HRTF is too CPU-heavy on mobile
+  impulse:     { duration: 1.2, decay: 2.5 }, // shorter IR = less convolver CPU
+  compressor:  { threshold: -18, knee: 8,  ratio: 6,  release: 0.1  },
+  limiter:     { threshold: -2.0 },           // extra OS headroom
+  fftSize:     1024,            // less memory bandwidth per frame
+  crossfadeDuration: 3,         // shorter overlap = less simultaneous decoding
+  enhance: {
+    subBass:    3,              // phone speakers can't reproduce sub-bass
+    bass:       4,
+    lowMid:    -1,
+    mid:        1,
+    presence:   3,
+    brilliance: 2,
+    air:        3,              // phone tweeters distort above ~10 kHz
+    delayL:     0.012,          // smaller delay avoids comb filter on mono speakers
+    delayR:     0,
+    gainL:      1.05,
+    gainR:      1.0,
+    pannerZ:    1.0,            // less depth — avoids loud/quiet swings on equalpower
+    reverbWet:  0.10,           // less reverb = less convolver CPU
+    dryGain:    0.92,
+    outputGain: 1.05,           // stays safely under limiter threshold
+  },
+};
+
 export const PlayerProvider = ({ children }) => {
   /* =========================================================
       AUDIO ENGINE REFS
       ========================================================= */
-  const audioRef = useRef(null);
-  const audioCtx = useRef(null);
+  const audioRef   = useRef(null);
+  const audioCtx   = useRef(null);
   const sourceNode = useRef(null);
   const lastTimeRef = useRef(0);
-  const lastSrcRef = useRef(null);
+  const lastSrcRef  = useRef(null);
   const crossfadeTriggeredRef = useRef(false);
-  const isMobileRef = useRef(false);
 
-  // Always-fresh refs for Media Session
+  // Resolved once on mount — never changes
+  const isMobileRef      = useRef(false);
+  const engineConfigRef  = useRef(DESKTOP_ENGINE); // active config pointer
+
+  // Always-fresh refs for Media Session (fixes stale closure / earbud stop btn)
   const togglePlayRef = useRef(null);
-  const playNextRef = useRef(null);
-  const playPrevRef = useRef(null);
+  const playNextRef   = useRef(null);
+  const playPrevRef   = useRef(null);
 
   // 7-band EQ
-  const subBassNode = useRef(null);
-  const bassNode = useRef(null);
-  const lowMidNode = useRef(null);
-  const midNode = useRef(null);
-  const presenceNode = useRef(null);
+  const subBassNode    = useRef(null);
+  const bassNode       = useRef(null);
+  const lowMidNode     = useRef(null);
+  const midNode        = useRef(null);
+  const presenceNode   = useRef(null);
   const brillianceNode = useRef(null);
-  const airNode = useRef(null);
+  const airNode        = useRef(null);
 
   // Spatial / dynamics
   const spatialPanner = useRef(null);
-  const gainNode = useRef(null);
-  const preGain = useRef(null);
-  const compressor = useRef(null);
-  const limiter = useRef(null);
-  const analyzerNode = useRef(null);
+  const gainNode      = useRef(null);
+  const preGain       = useRef(null);
+  const compressor    = useRef(null);
+  const limiter       = useRef(null);
+  const analyzerNode  = useRef(null);
 
   // Reverb
-  const convolverNode = useRef(null);
-  const reverbGain = useRef(null);
-  const dryGain = useRef(null);
-  const reverbMixNode = useRef(null);
+  const convolverNode  = useRef(null);
+  const reverbGain     = useRef(null);
+  const dryGain        = useRef(null);
+  const reverbMixNode  = useRef(null);
 
   // Stereo widener
-  const splitter = useRef(null);
-  const merger = useRef(null);
-  const delayL = useRef(null);
-  const delayR = useRef(null);
-  const widenerGainL = useRef(null);
-  const widenerGainR = useRef(null);
+  const splitter      = useRef(null);
+  const merger        = useRef(null);
+  const delayL        = useRef(null);
+  const delayR        = useRef(null);
+  const widenerGainL  = useRef(null);
+  const widenerGainR  = useRef(null);
 
   /* =========================================================
       STATE
       ========================================================= */
-  const [playlist, setPlaylist] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentSong, setCurrentSong] = useState(null);
-  const [isEnhanced, setIsEnhanced] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoop, setIsLoop] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [playbackRate, setPlaybackRate] = useState(1.0);
+  const [playlist,        setPlaylist]        = useState([]);
+  const [currentIndex,    setCurrentIndex]    = useState(0);
+  const [currentSong,     setCurrentSong]     = useState(null);
+  const [isEnhanced,      setIsEnhanced]      = useState(false);
+  const [isPlaying,       setIsPlaying]       = useState(false);
+  const [isLoop,          setIsLoop]          = useState(false);
+  const [progress,        setProgress]        = useState(0);
+  const [duration,        setDuration]        = useState(0);
+  const [volume,          setVolume]          = useState(1);
+  const [playbackRate,    setPlaybackRate]    = useState(1.0);
   const [listenedSeconds, setListenedSeconds] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCrossfading, setIsCrossfading] = useState(false);
+  const [isLoading,       setIsLoading]       = useState(true);
+  const [isCrossfading,   setIsCrossfading]   = useState(false);
 
   /* =========================================================
-      1. PERSISTENCE HYDRATION
+      1. PERSISTENCE HYDRATION + DEVICE DETECTION
       ========================================================= */
   useEffect(() => {
-    isMobileRef.current = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // Detect device once → lock in the correct engine config for the session
+    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    isMobileRef.current     = mobile;
+    engineConfigRef.current = mobile ? MOBILE_ENGINE : DESKTOP_ENGINE;
 
-    const savedSong = localStorage.getItem("last_played_song");
+    const savedSong     = localStorage.getItem("last_played_song");
     const savedPlaylist = localStorage.getItem("last_playlist");
-    const savedVolume = localStorage.getItem("player_volume");
-    const savedStats = localStorage.getItem("total_listened_time");
-    const savedTime = localStorage.getItem("last_timestamp");
+    const savedVolume   = localStorage.getItem("player_volume");
+    const savedStats    = localStorage.getItem("total_listened_time");
+    const savedTime     = localStorage.getItem("last_timestamp");
 
-    if (savedSong) { try { setCurrentSong(JSON.parse(savedSong)); } catch (e) { console.error(e); } }
-    if (savedPlaylist) { try { setPlaylist(JSON.parse(savedPlaylist)); } catch (e) { console.error(e); } }
-    if (savedVolume) setVolume(parseFloat(savedVolume));
-    if (savedStats) setListenedSeconds(parseFloat(savedStats));
-    if (savedTime) lastTimeRef.current = parseFloat(savedTime);
+    if (savedSong)     { try { setCurrentSong(JSON.parse(savedSong));   } catch (e) { console.error(e); } }
+    if (savedPlaylist) { try { setPlaylist(JSON.parse(savedPlaylist));   } catch (e) { console.error(e); } }
+    if (savedVolume)   setVolume(parseFloat(savedVolume));
+    if (savedStats)    setListenedSeconds(parseFloat(savedStats));
+    if (savedTime)     lastTimeRef.current = parseFloat(savedTime);
     setIsLoading(false);
   }, []);
 
   /* =========================================================
       2. IMPULSE RESPONSE GENERATOR
-      FIX: Mobile gets a shorter, lighter reverb to reduce CPU load
-           which is the #1 cause of crackling on mobile.
       ========================================================= */
   const buildImpulseResponse = useCallback((ctx, dur, decay) => {
-    const rate = ctx.sampleRate;
+    const rate   = ctx.sampleRate;
     const length = Math.floor(rate * dur);
     const impulse = ctx.createBuffer(2, length, rate);
     for (let ch = 0; ch < 2; ch++) {
       const data = impulse.getChannelData(ch);
       for (let i = 0; i < length; i++) {
-        const t = i / rate;
+        const t          = i / rate;
         const earlyBoost = t < 0.08 ? 1.5 : 1.0;
         data[i] = (Math.random() * 2 - 1) * earlyBoost * Math.pow(1 - t / dur, decay);
       }
@@ -120,145 +188,133 @@ export const PlayerProvider = ({ children }) => {
   }, []);
 
   /* =========================================================
-      3. DOLBY ATMOS ENGINE INIT
-      FIX: Mobile uses a simplified, lower-CPU signal chain:
-        - equalpower panning (not HRTF — HRTF is expensive)
-        - Shorter reverb IR (1.2s vs 2.8s)
-        - Lower sampleRate (44100 vs 48000) — mobile hardware native
-        - Smaller FFT (1024 vs 2048)
-        - preGain slightly lower to prevent clipping headroom issues
-        - Widener delay values kept tiny to avoid phase issues on phone speakers
+      3. ENGINE INIT
+      All parameters come from engineConfigRef — no branching needed.
+      Desktop gets the original full-quality chain.
+      Mobile gets the lightweight chain. Both use the exact same code.
       ========================================================= */
   const initSpatialEngine = useCallback(() => {
     if (audioCtx.current) return;
     try {
-      const isMobile = isMobileRef.current;
+      const cfg     = engineConfigRef.current; // DESKTOP_ENGINE or MOBILE_ENGINE
       const Context = window.AudioContext || window.webkitAudioContext;
 
-      // FIX: Mobile uses 44100 (native to most phone DACs). 48000 on mobile
-      // causes the OS resampler to run, adding CPU load and jitter = crackling.
       audioCtx.current = new Context({
-        latencyHint: isMobile ? "interactive" : "playback",
-        sampleRate: isMobile ? 44100 : 48000,
+        latencyHint: cfg.latencyHint,
+        sampleRate:  cfg.sampleRate,
       });
       const ctx = audioCtx.current;
 
-      sourceNode.current = ctx.createMediaElementSource(audioRef.current);
-
-      // FIX: Lower preGain on mobile prevents inter-sample clipping on
-      // compressed phone DACs/speakers that don't have limiter headroom.
-      preGain.current = ctx.createGain();
-      preGain.current.gain.value = isMobile ? 0.7 : 0.8;
+      sourceNode.current             = ctx.createMediaElementSource(audioRef.current);
+      preGain.current                = ctx.createGain();
+      preGain.current.gain.value     = cfg.preGain;
 
       // EQ nodes
-      subBassNode.current = ctx.createBiquadFilter();
-      subBassNode.current.type = "lowshelf";
+      subBassNode.current            = ctx.createBiquadFilter();
+      subBassNode.current.type       = "lowshelf";
       subBassNode.current.frequency.value = 30;
       subBassNode.current.gain.value = 0;
 
-      bassNode.current = ctx.createBiquadFilter();
-      bassNode.current.type = "peaking";
+      bassNode.current               = ctx.createBiquadFilter();
+      bassNode.current.type          = "peaking";
       bassNode.current.frequency.value = 80;
-      bassNode.current.Q.value = 0.8;
-      bassNode.current.gain.value = 0;
+      bassNode.current.Q.value       = 0.8;
+      bassNode.current.gain.value    = 0;
 
-      lowMidNode.current = ctx.createBiquadFilter();
-      lowMidNode.current.type = "peaking";
+      lowMidNode.current             = ctx.createBiquadFilter();
+      lowMidNode.current.type        = "peaking";
       lowMidNode.current.frequency.value = 250;
-      lowMidNode.current.Q.value = 1.2;
-      lowMidNode.current.gain.value = 0;
+      lowMidNode.current.Q.value     = 1.2;
+      lowMidNode.current.gain.value  = 0;
 
-      midNode.current = ctx.createBiquadFilter();
-      midNode.current.type = "peaking";
+      midNode.current                = ctx.createBiquadFilter();
+      midNode.current.type           = "peaking";
       midNode.current.frequency.value = 1000;
-      midNode.current.Q.value = 0.9;
-      midNode.current.gain.value = 0;
+      midNode.current.Q.value        = 0.9;
+      midNode.current.gain.value     = 0;
 
-      presenceNode.current = ctx.createBiquadFilter();
-      presenceNode.current.type = "peaking";
+      presenceNode.current           = ctx.createBiquadFilter();
+      presenceNode.current.type      = "peaking";
       presenceNode.current.frequency.value = 3000;
-      presenceNode.current.Q.value = 0.7;
+      presenceNode.current.Q.value   = 0.7;
       presenceNode.current.gain.value = 0;
 
-      brillianceNode.current = ctx.createBiquadFilter();
-      brillianceNode.current.type = "peaking";
+      brillianceNode.current         = ctx.createBiquadFilter();
+      brillianceNode.current.type    = "peaking";
       brillianceNode.current.frequency.value = 8000;
       brillianceNode.current.Q.value = 1.0;
       brillianceNode.current.gain.value = 0;
 
-      airNode.current = ctx.createBiquadFilter();
-      airNode.current.type = "highshelf";
+      airNode.current                = ctx.createBiquadFilter();
+      airNode.current.type           = "highshelf";
       airNode.current.frequency.value = 16000;
-      airNode.current.gain.value = 0;
+      airNode.current.gain.value     = 0;
 
       // Stereo widener
-      splitter.current = ctx.createChannelSplitter(2);
-      merger.current = ctx.createChannelMerger(2);
-      delayL.current = ctx.createDelay(0.1);
-      delayR.current = ctx.createDelay(0.1);
-      widenerGainL.current = ctx.createGain();
-      widenerGainR.current = ctx.createGain();
+      splitter.current               = ctx.createChannelSplitter(2);
+      merger.current                 = ctx.createChannelMerger(2);
+      delayL.current                 = ctx.createDelay(0.1);
+      delayR.current                 = ctx.createDelay(0.1);
+      widenerGainL.current           = ctx.createGain();
+      widenerGainR.current           = ctx.createGain();
       delayL.current.delayTime.value = 0;
       delayR.current.delayTime.value = 0;
       widenerGainL.current.gain.value = 1;
       widenerGainR.current.gain.value = 1;
 
-      // FIX: Always use equalpower on mobile.
-      // HRTF uses Head-Related Transfer Functions computed in real-time —
-      // extremely CPU-heavy, causes audio thread starvation = crackling.
-      spatialPanner.current = ctx.createPanner();
-      spatialPanner.current.panningModel = isMobile ? "equalpower" : "HRTF";
-      spatialPanner.current.distanceModel = "inverse";
-      spatialPanner.current.refDistance = 1;
-      spatialPanner.current.rolloffFactor = 0;
+      // Spatial panner — HRTF on desktop, equalpower on mobile
+      spatialPanner.current                 = ctx.createPanner();
+      spatialPanner.current.panningModel    = cfg.panningModel;
+      spatialPanner.current.distanceModel   = "inverse";
+      spatialPanner.current.refDistance     = 1;
+      spatialPanner.current.rolloffFactor   = 0;
       spatialPanner.current.positionX.value = 0;
       spatialPanner.current.positionY.value = 0;
       spatialPanner.current.positionZ.value = 0;
 
-      // FIX: Mobile gets shorter IR (1.2s, decay 2.5).
-      // Convolution reverb is O(n) in impulse length — halving the IR
-      // roughly halves the CPU cost of the convolver node.
-      convolverNode.current = ctx.createConvolver();
+      // Reverb — long IR on desktop, short IR on mobile
+      convolverNode.current        = ctx.createConvolver();
       convolverNode.current.buffer = buildImpulseResponse(
         ctx,
-        isMobile ? 1.2 : 2.8,
-        isMobile ? 2.5 : 3.2
+        cfg.impulse.duration,
+        cfg.impulse.decay
       );
-      reverbGain.current = ctx.createGain();
+      reverbGain.current           = ctx.createGain();
       reverbGain.current.gain.value = 0;
-      dryGain.current = ctx.createGain();
-      dryGain.current.gain.value = 1;
-      reverbMixNode.current = ctx.createGain();
+      dryGain.current              = ctx.createGain();
+      dryGain.current.gain.value   = 1;
+      reverbMixNode.current        = ctx.createGain();
       reverbMixNode.current.gain.value = 1;
 
-      // FIX: Tighter compressor on mobile.
-      // Phone speakers distort early — a lower threshold + faster release
-      // catches peaks before they hit the speaker membrane limit.
-      compressor.current = ctx.createDynamicsCompressor();
-      compressor.current.threshold.value = isMobile ? -18 : -24;
-      compressor.current.knee.value = isMobile ? 8 : 12;
-      compressor.current.ratio.value = isMobile ? 6 : 4;
-      compressor.current.attack.value = 0.003;
-      compressor.current.release.value = isMobile ? 0.1 : 0.15;
+      // Compressor
+      compressor.current                  = ctx.createDynamicsCompressor();
+      compressor.current.threshold.value  = cfg.compressor.threshold;
+      compressor.current.knee.value       = cfg.compressor.knee;
+      compressor.current.ratio.value      = cfg.compressor.ratio;
+      compressor.current.attack.value     = 0.003;
+      compressor.current.release.value    = cfg.compressor.release;
 
-      gainNode.current = ctx.createGain();
-      gainNode.current.gain.value = 1;
+      gainNode.current             = ctx.createGain();
+      gainNode.current.gain.value  = 1;
 
-      // FIX: Limiter threshold slightly lower on mobile (-2 vs -1)
-      // to give more headroom before the OS audio stack clips.
-      limiter.current = ctx.createDynamicsCompressor();
-      limiter.current.threshold.value = isMobile ? -2.0 : -1.0;
-      limiter.current.knee.value = 0;
-      limiter.current.ratio.value = 20;
-      limiter.current.attack.value = 0.001;
-      limiter.current.release.value = 0.05;
+      // Limiter
+      limiter.current                  = ctx.createDynamicsCompressor();
+      limiter.current.threshold.value  = cfg.limiter.threshold;
+      limiter.current.knee.value       = 0;
+      limiter.current.ratio.value      = 20;
+      limiter.current.attack.value     = 0.001;
+      limiter.current.release.value    = 0.05;
 
-      // FIX: Smaller FFT on mobile = less memory bandwidth per frame.
-      analyzerNode.current = ctx.createAnalyser();
-      analyzerNode.current.fftSize = isMobile ? 1024 : 2048;
+      // Analyser
+      analyzerNode.current         = ctx.createAnalyser();
+      analyzerNode.current.fftSize = cfg.fftSize;
 
-      // Signal chain (same topology, mobile values baked in above)
-      const eqChain = [subBassNode, bassNode, lowMidNode, midNode, presenceNode, brillianceNode, airNode].map(r => r.current);
+      // Signal chain (identical topology for both device types)
+      const eqChain = [
+        subBassNode, bassNode, lowMidNode, midNode,
+        presenceNode, brillianceNode, airNode,
+      ].map(r => r.current);
+
       sourceNode.current.connect(preGain.current);
       eqChain.reduce((prev, node) => { prev.connect(node); return node; }, preGain.current);
 
@@ -283,20 +339,14 @@ export const PlayerProvider = ({ children }) => {
       limiter.current.connect(ctx.destination);
 
     } catch (err) {
-      console.error("Critical: Dolby Atmos Engine failed", err);
+      console.error("Critical: Audio Engine failed to init", err);
     }
   }, [buildImpulseResponse]);
 
   /* =========================================================
       4. DOLBY ATMOS TOGGLE
-      FIX: Mobile uses reduced enhancement values.
-        - Sub-bass boost cut from +6 to +3 dB (phone speakers can't reproduce
-          sub-bass; boosting it just makes the amp clip)
-        - Presence +4 → +3, Air +5 → +3 (phone tweeters distort above ~10kHz)
-        - Reverb wet mix cut from 0.18 → 0.10 (reduces convolver CPU spike)
-        - Stereo delay smaller (0.012s vs 0.018s) — wider stereo on headphones
-          but avoids comb filtering on phone speakers
-        - gainNode ceiling lower (1.05 vs 1.15) — stays under limiter threshold
+      Reads enhance values from the active config — no if/else needed.
+      Desktop gets the original full boosts. Mobile gets gentler values.
       ========================================================= */
   const toggleEnhancedAudio = useCallback(() => {
     if (!audioCtx.current) initSpatialEngine();
@@ -306,7 +356,7 @@ export const PlayerProvider = ({ children }) => {
     if (!ctx) return;
     if (ctx.state === "suspended") ctx.resume();
 
-    const isMobile = isMobileRef.current;
+    const e   = engineConfigRef.current.enhance; // desktop or mobile values
     const now = ctx.currentTime;
     const fade = 0.4;
     const ramp = (param, target) => {
@@ -316,49 +366,37 @@ export const PlayerProvider = ({ children }) => {
     };
 
     if (newState) {
-      // FIX: Mobile gets gentler EQ curve — avoids pumping/crackling from
-      // over-driven frequency bands on small phone drivers.
-      ramp(subBassNode.current.gain,    isMobile ? 3   : 6);
-      ramp(bassNode.current.gain,       isMobile ? 4   : 5);
-      ramp(lowMidNode.current.gain,     isMobile ? -1  : -2);
-      ramp(midNode.current.gain,        isMobile ? 1   : 1);
-      ramp(presenceNode.current.gain,   isMobile ? 3   : 4);
-      ramp(brillianceNode.current.gain, isMobile ? 2   : 3);
-      ramp(airNode.current.gain,        isMobile ? 3   : 5);
-
-      // FIX: Smaller stereo delay on mobile avoids comb filter on mono
-      // phone speakers while still widening on headphones.
-      ramp(delayL.current.delayTime,    isMobile ? 0.012 : 0.018);
-      ramp(delayR.current.delayTime,    0);
-      ramp(widenerGainL.current.gain,   isMobile ? 1.05 : 1.1);
-      ramp(widenerGainR.current.gain,   1.0);
-
-      // FIX: Reduce spatial Z-depth on mobile — extreme Z values with
-      // equalpower panning can cause sudden loud/quiet swings.
-      ramp(spatialPanner.current.positionZ, isMobile ? 1.0 : 1.8);
-
-      // FIX: Less reverb wet signal on mobile = less convolver CPU.
-      ramp(reverbGain.current.gain,  isMobile ? 0.10 : 0.18);
-      ramp(dryGain.current.gain,     isMobile ? 0.92 : 0.88);
-
-      // FIX: Lower output gain ceiling on mobile to stay under limiter.
-      ramp(gainNode.current.gain,    isMobile ? 1.05 : 1.15);
+      ramp(subBassNode.current.gain,        e.subBass);
+      ramp(bassNode.current.gain,           e.bass);
+      ramp(lowMidNode.current.gain,         e.lowMid);
+      ramp(midNode.current.gain,            e.mid);
+      ramp(presenceNode.current.gain,       e.presence);
+      ramp(brillianceNode.current.gain,     e.brilliance);
+      ramp(airNode.current.gain,            e.air);
+      ramp(delayL.current.delayTime,        e.delayL);
+      ramp(delayR.current.delayTime,        e.delayR);
+      ramp(widenerGainL.current.gain,       e.gainL);
+      ramp(widenerGainR.current.gain,       e.gainR);
+      ramp(spatialPanner.current.positionZ, e.pannerZ);
+      ramp(reverbGain.current.gain,         e.reverbWet);
+      ramp(dryGain.current.gain,            e.dryGain);
+      ramp(gainNode.current.gain,           e.outputGain);
     } else {
-      ramp(subBassNode.current.gain, 0);
-      ramp(bassNode.current.gain, 0);
-      ramp(lowMidNode.current.gain, 0);
-      ramp(midNode.current.gain, 0);
-      ramp(presenceNode.current.gain, 0);
-      ramp(brillianceNode.current.gain, 0);
-      ramp(airNode.current.gain, 0);
-      ramp(delayL.current.delayTime, 0);
-      ramp(delayR.current.delayTime, 0);
-      ramp(widenerGainL.current.gain, 1);
-      ramp(widenerGainR.current.gain, 1);
+      ramp(subBassNode.current.gain,        0);
+      ramp(bassNode.current.gain,           0);
+      ramp(lowMidNode.current.gain,         0);
+      ramp(midNode.current.gain,            0);
+      ramp(presenceNode.current.gain,       0);
+      ramp(brillianceNode.current.gain,     0);
+      ramp(airNode.current.gain,            0);
+      ramp(delayL.current.delayTime,        0);
+      ramp(delayR.current.delayTime,        0);
+      ramp(widenerGainL.current.gain,       1);
+      ramp(widenerGainR.current.gain,       1);
       ramp(spatialPanner.current.positionZ, 0);
-      ramp(reverbGain.current.gain, 0);
-      ramp(dryGain.current.gain, 1);
-      ramp(gainNode.current.gain, 1);
+      ramp(reverbGain.current.gain,         0);
+      ramp(dryGain.current.gain,            1);
+      ramp(gainNode.current.gain,           1);
     }
   }, [isEnhanced, initSpatialEngine]);
 
@@ -417,14 +455,11 @@ export const PlayerProvider = ({ children }) => {
   }, [playlist, currentIndex]);
 
   useEffect(() => { togglePlayRef.current = togglePlay; }, [togglePlay]);
-  useEffect(() => { playNextRef.current = playNext; }, [playNext]);
-  useEffect(() => { playPrevRef.current = playPrev; }, [playPrev]);
+  useEffect(() => { playNextRef.current   = playNext;   }, [playNext]);
+  useEffect(() => { playPrevRef.current   = playPrev;   }, [playPrev]);
 
   /* =========================================================
-      5B. CROSSFADE
-      FIX: Mobile gets a shorter crossfade (3s vs 5s).
-      Long crossfades on mobile = two Audio nodes decoding simultaneously
-      = doubled CPU/memory = buffer underruns = crackling.
+      5B. CROSSFADE — duration read from active config
       ========================================================= */
   const handleCrossfade = useCallback(async () => {
     if (
@@ -438,45 +473,36 @@ export const PlayerProvider = ({ children }) => {
     ) return;
 
     const nextIndex = (currentIndex + 1) % playlist.length;
-    const nextSong = playlist[nextIndex];
+    const nextSong  = playlist[nextIndex];
     if (!nextSong) return;
 
     crossfadeTriggeredRef.current = true;
     setIsCrossfading(true);
 
-    const ctx = audioCtx.current;
-    const isMobile = isMobileRef.current;
-
-    // FIX: Shorter fade on mobile — less overlap = less simultaneous decoding.
-    const FADE_DURATION = isMobile ? 3 : 5;
-    const now = ctx.currentTime;
+    const ctx           = audioCtx.current;
+    const FADE_DURATION = engineConfigRef.current.crossfadeDuration; // 5s desktop / 3s mobile
+    const now           = ctx.currentTime;
 
     try {
-      const nextAudio = new Audio(nextSong.audio_url);
+      const nextAudio       = new Audio(nextSong.audio_url);
       nextAudio.crossOrigin = "anonymous";
-      nextAudio.preload = "auto";
-
-      // FIX: On mobile, set volume to 0 on the element itself BEFORE connecting
-      // to Web Audio — prevents the OS audio mixer from hearing a brief pop
-      // when the element is first attached to the AudioContext graph.
-      nextAudio.volume = 0;
+      nextAudio.preload     = "auto";
+      nextAudio.volume      = 0; // prevent OS mixer pop on graph attach
 
       await new Promise((resolve, reject) => {
         nextAudio.addEventListener("canplaythrough", resolve, { once: true });
         nextAudio.addEventListener("error", (e) => reject(e), { once: true });
-        setTimeout(resolve, isMobile ? 4000 : 3000);
+        setTimeout(resolve, isMobileRef.current ? 4000 : 3000);
         nextAudio.load();
       });
 
       const nextSource = ctx.createMediaElementSource(nextAudio);
-      const nextGain = ctx.createGain();
+      const nextGain   = ctx.createGain();
       nextGain.gain.setValueAtTime(0, now);
       nextSource.connect(nextGain);
       nextGain.connect(compressor.current);
 
-      // FIX: Restore element volume after connecting to Web Audio graph —
-      // the gain node controls level from here, not the element volume.
-      nextAudio.volume = 1;
+      nextAudio.volume = 1; // hand level control to Web Audio gain node
       await nextAudio.play();
 
       gainNode.current.gain.cancelScheduledValues(now);
@@ -496,7 +522,7 @@ export const PlayerProvider = ({ children }) => {
           nextAudio.pause();
 
           audioRef.current.src = nextSong.audio_url;
-          lastSrcRef.current = nextSong.audio_url;
+          lastSrcRef.current   = nextSong.audio_url;
           audioRef.current.load();
 
           await new Promise((resolve) => {
@@ -513,10 +539,7 @@ export const PlayerProvider = ({ children }) => {
           gainNode.current.gain.cancelScheduledValues(ctx.currentTime);
           gainNode.current.gain.setValueAtTime(1, ctx.currentTime);
 
-          if (audioCtx.current?.state === "suspended") {
-            await audioCtx.current.resume();
-          }
-
+          if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
           await audioRef.current.play();
 
           setCurrentIndex(nextIndex);
@@ -548,27 +571,27 @@ export const PlayerProvider = ({ children }) => {
   }, [playlist, currentIndex, isCrossfading, isLoop]);
 
   /* =========================================================
-      6. MEDIA SESSION
+      6. MEDIA SESSION — HARDWARE BUTTON FIX
       ========================================================= */
   useEffect(() => {
     if (!currentSong || !("mediaSession" in navigator)) return;
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentSong.title,
-      artist: currentSong.artist_name,
+      title:   currentSong.title,
+      artist:  currentSong.artist_name,
       artwork: [{ src: currentSong.cover_url, sizes: "512x512", type: "image/png" }],
     });
 
-    navigator.mediaSession.setActionHandler("play", () => togglePlayRef.current?.());
-    navigator.mediaSession.setActionHandler("pause", () => togglePlayRef.current?.());
-    navigator.mediaSession.setActionHandler("stop", () => {
+    navigator.mediaSession.setActionHandler("play",          () => togglePlayRef.current?.());
+    navigator.mediaSession.setActionHandler("pause",         () => togglePlayRef.current?.());
+    navigator.mediaSession.setActionHandler("stop",          () => {
       const audio = audioRef.current;
       if (audio) audio.pause();
       setIsPlaying(false);
     });
-    navigator.mediaSession.setActionHandler("nexttrack", () => playNextRef.current?.());
+    navigator.mediaSession.setActionHandler("nexttrack",     () => playNextRef.current?.());
     navigator.mediaSession.setActionHandler("previoustrack", () => playPrevRef.current?.());
-    navigator.mediaSession.setActionHandler("seekto", (details) => {
+    navigator.mediaSession.setActionHandler("seekto",        (details) => {
       if (details.seekTime !== undefined) {
         const audio = audioRef.current;
         if (audio) {
@@ -593,6 +616,8 @@ export const PlayerProvider = ({ children }) => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    const crossfadeTriggerWindow = engineConfigRef.current.crossfadeDuration;
+
     const onTimeUpdate = () => {
       setProgress(audio.currentTime);
       localStorage.setItem("last_timestamp", audio.currentTime.toString());
@@ -600,16 +625,16 @@ export const PlayerProvider = ({ children }) => {
       if ("mediaSession" in navigator && audio.duration && !isNaN(audio.duration)) {
         try {
           navigator.mediaSession.setPositionState({
-            duration: audio.duration,
+            duration:     audio.duration,
             playbackRate: audio.playbackRate,
-            position: Math.min(audio.currentTime, audio.duration),
+            position:     Math.min(audio.currentTime, audio.duration),
           });
         } catch (e) { /* ignore */ }
       }
 
       if (
         audio.duration &&
-        audio.duration - audio.currentTime <= (isMobileRef.current ? 3 : 5) &&
+        audio.duration - audio.currentTime <= crossfadeTriggerWindow &&
         !isCrossfading &&
         isPlaying &&
         !isLoop &&
@@ -622,34 +647,31 @@ export const PlayerProvider = ({ children }) => {
     const onLoadedMetadata = () => {
       if (audio.duration) setDuration(audio.duration);
       if (lastTimeRef.current > 0) {
-        audio.currentTime = lastTimeRef.current;
+        audio.currentTime   = lastTimeRef.current;
         lastTimeRef.current = 0;
       }
     };
 
-    const onPlay = () => setIsPlaying(true);
+    const onPlay  = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
-
     const onEnded = () => {
-      if (!isLoop && !crossfadeTriggeredRef.current) {
-        playNext();
-      }
+      if (!isLoop && !crossfadeTriggeredRef.current) playNext();
     };
 
-    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("timeupdate",     onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("durationchange", onLoadedMetadata);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("play",           onPlay);
+    audio.addEventListener("pause",          onPause);
+    audio.addEventListener("ended",          onEnded);
 
     return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("timeupdate",     onTimeUpdate);
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("durationchange", onLoadedMetadata);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("play",           onPlay);
+      audio.removeEventListener("pause",          onPause);
+      audio.removeEventListener("ended",          onEnded);
     };
   }, [isLoop, playNext, handleCrossfade, isCrossfading, isPlaying]);
 
@@ -684,10 +706,7 @@ export const PlayerProvider = ({ children }) => {
   }, [currentSong, isPlaying]);
 
   /* =========================================================
-      9. VISIBILITY CHANGE — MOBILE WAKE RESTORE
-      FIX: Re-check AudioContext state on wake — iOS aggressively suspends
-      the AudioContext when screen turns off, causing silence or crackling
-      on resume if the context is not explicitly resumed.
+      9. VISIBILITY CHANGE — MOBILE SCREEN-OFF RESTORE
       ========================================================= */
   useEffect(() => {
     const handleVisibilityChange = async () => {
@@ -696,15 +715,12 @@ export const PlayerProvider = ({ children }) => {
         if (ctx?.state === "suspended") {
           try { await ctx.resume(); } catch (e) { console.warn(e); }
         }
-        // FIX: On iOS, the AudioContext can enter a "running" state but still
-        // produce silence after screen wake. Close and re-init as last resort.
-        if (ctx?.state === "running" && isMobileRef.current) {
+        // iOS sometimes re-enters "running" but produces silence —
+        // touching .volume forces the OS audio session to re-activate
+        if (isMobileRef.current && ctx?.state === "running") {
           const audio = audioRef.current;
           if (audio && !audio.paused) {
-            // Tiny silent resume trick — forces iOS audio session re-activation
-            try {
-              audio.volume = audio.volume;
-            } catch (e) { /* noop */ }
+            try { audio.volume = audio.volume; } catch (e) { /* noop */ }
           }
         }
         const audio = audioRef.current;
