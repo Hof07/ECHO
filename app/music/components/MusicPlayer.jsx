@@ -446,7 +446,7 @@ const LyricsView = ({
         })}
 
         {/* Bottom spacer: lets last lines scroll all the way up */}
-        <div style={{ height: "60vh" }} />
+        <div style={{ height: "120px" }} />
 
         <style>{`
           @keyframes wordPop {
@@ -587,8 +587,21 @@ const FullScreenPlayer = ({
       </button>
 
       {/* Snap scroll outer */}
-      <div ref={scrollRef} onScroll={handleScroll} className="absolute inset-0 overflow-y-auto"
-        style={{ scrollSnapType: "y mandatory", scrollbarWidth: "none" }}>
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        style={{
+          position: "relative",
+          zIndex: 1,
+          height: "100%",
+          overflowY: "auto",
+          overflowX: "hidden",
+          padding: "0 28px",
+          paddingBottom: "80px",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
 
         {/* ════ SECTION 1 — PLAYER ════ */}
         <div className="flex items-center justify-center p-4" style={{ minHeight: "100dvh", scrollSnapAlign: "start" }}>
@@ -667,7 +680,8 @@ const FullScreenPlayer = ({
         </div>
 
         {/* ════ SECTION 2 — LYRICS ════ */}
-        <div className="flex flex-col w-full" style={{ minHeight: "100dvh", scrollSnapAlign: "start" }}>
+        {/* ════ SECTION 2 — LYRICS ════ */}
+        <div className="flex flex-col w-full" style={{ minHeight: "100dvh", scrollSnapAlign: "start", position: "relative" }}>
           <div className="flex-1 w-full relative z-10">
             <LyricsView
               lyrics={lyrics}
@@ -681,13 +695,28 @@ const FullScreenPlayer = ({
               textColors={textColors}
             />
           </div>
-          <button
-            className="mb-8 flex flex-col items-center gap-1 text-xs z-10 relative"
-            style={{ color: `rgba(${tr},${tg},${tb},0.3)` }}
-            onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}>
-            <ChevronDown className="w-4 h-4 rotate-180" />
-            <span>scroll up for player</span>
-          </button>
+
+          {/* Floating bottom button — overlays lyrics with fade */}
+          <div style={{
+            position: "absolute",
+            bottom: 0, left: 0, right: 0,
+            zIndex: 20,
+            paddingBottom: "24px",
+            paddingTop: "60px",
+            background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.85) 60%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 4,
+            pointerEvents: "none",
+          }}>
+            <button
+              style={{ color: `rgba(${tr},${tg},${tb},0.4)`, fontSize: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "auto" }}
+              onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}>
+              <ChevronDown className="w-4 h-4 rotate-180" />
+              <span>scroll up for player</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
