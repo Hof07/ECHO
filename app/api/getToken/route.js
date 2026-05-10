@@ -9,7 +9,6 @@ const supabase = createClient(
 
 export async function GET(req) {
   try {
-    // 1️⃣ Read token from cookies
     const token = req.cookies.get("music_jwt")?.value;
     if (!token) {
       return NextResponse.json(
@@ -18,7 +17,6 @@ export async function GET(req) {
       );
     }
 
-    // 2️⃣ Decode JWT → get userId
     const SECRET = new TextEncoder().encode(process.env.NEXT_PUBLIC_JWT_SECRET);
     const { payload } = await jwtVerify(token, SECRET);
     const userId = payload.id;
@@ -30,7 +28,6 @@ export async function GET(req) {
       );
     }
 
-    // 3️⃣ Fetch user from Supabase (profiles table)
     const { data: profile, error } = await supabase
       .from("profiles")
       .select("*")
@@ -44,7 +41,6 @@ export async function GET(req) {
       );
     }
 
-    // 4️⃣ Return user data
     return NextResponse.json({
       success: true,
       user: profile,

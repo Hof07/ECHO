@@ -31,6 +31,10 @@ export default function RootLayout({ children }) {
           name="google-site-verification"
           content="googleaadf1a5d11837f5a.html"
         />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
       </head>
 
       <body className="font-sans antialiased bg-white text-gray-900">
@@ -38,6 +42,30 @@ export default function RootLayout({ children }) {
           {children}
           <MusicPlayer />
         </PlayerProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Disable right-click context menu
+              document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+              });
+
+              // Disable Ctrl+/- and Ctrl+0 zoom shortcuts
+              document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+                  e.preventDefault();
+                }
+              });
+
+              // Disable Ctrl+scroll wheel zoom
+              document.addEventListener('wheel', function(e) {
+                if (e.ctrlKey) {
+                  e.preventDefault();
+                }
+              }, { passive: false });
+            `,
+          }}
+        />
       </body>
     </html>
   );

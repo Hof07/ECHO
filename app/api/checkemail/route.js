@@ -8,7 +8,7 @@ const supabase = createClient(
 
 export async function POST(req) {
   try {
-    const { identifier } = await req.json(); // email OR username
+    const { identifier } = await req.json();
 
     if (!identifier) {
       return NextResponse.json(
@@ -17,11 +17,16 @@ export async function POST(req) {
       );
     }
 
+    console.log("Searching for:", identifier);
+
     const { data, error } = await supabase
       .from("profiles")
       .select("id, email, username")
-      .or(`email.eq.${identifier}, username.eq.${identifier}`)
-      .single();
+      .or(`email.ilike.${identifier},username.ilike.${identifier}`)
+      .maybeSingle();
+
+    console.log("Data:", data);
+    console.log("Error:", error);
 
     if (error || !data) {
       return NextResponse.json(
@@ -42,6 +47,7 @@ export async function POST(req) {
       { status: 200 }
     );
   } catch (e) {
+    console.log("CATCH ERROR:", e);
     return NextResponse.json(
       { exists: false, message: e.message },
       { status: 500 }

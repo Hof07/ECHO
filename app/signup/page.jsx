@@ -103,7 +103,8 @@ export default function SignupPage() {
     form.username &&
     form.dob.year &&
     form.dob.month &&
-    form.dob.day;
+    form.dob.day &&
+    form.gender;
 
   // --- Password Validation Status ---
   const passwordChecks = useMemo(
@@ -166,6 +167,7 @@ export default function SignupPage() {
       // Hash password
       const hashedPassword = await bcrypt.hash(form.password, 10);
       const userId = uuidv4();
+      const dob = `${form.dob.year}-${String(form.dob.month).padStart(2, "0")}-${String(form.dob.day).padStart(2, "0")}`;
 
       const { error: insertError } = await supabase.from("profiles").insert([
         {
@@ -173,6 +175,8 @@ export default function SignupPage() {
           email: form.email,
           username: form.username,
           full_name: form.name,
+          dob: dob,
+          gender: form.gender,
           img: avatarFor(form.username || form.email),
           password: hashedPassword,
           created_at: new Date().toISOString(),

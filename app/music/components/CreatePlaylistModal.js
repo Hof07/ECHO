@@ -6,7 +6,7 @@ import { supabase } from "@/app/lib/supabaseClient";
 export default function CreatePlaylistModal({ close, refresh, createdBy }) {
   const [playlistName, setPlaylistName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [imageFile, setImageFile] = useState(null); // NEW FOR UPLOAD
+  const [imageFile, setImageFile] = useState(null); 
   const [errorMessage, setErrorMessage] = useState("");
 
   // Upload Image to Supabase Storage
@@ -56,14 +56,14 @@ export default function CreatePlaylistModal({ close, refresh, createdBy }) {
 
     setLoading(true);
 
-    // 1️⃣ Upload Image
+    // 1️ Upload Image
     const uploadedUrl = await uploadImage();
     if (!uploadedUrl) {
       setLoading(false);
       return;
     }
 
-    // 2️⃣ Insert playlist with created_by + uploaded image URL
+    // 2️ Insert playlist with created_by + uploaded image URL
     const { data, error } = await supabase
       .from("playlists")
       .insert([
