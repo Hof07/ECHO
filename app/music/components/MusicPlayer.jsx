@@ -1,4 +1,4 @@
-// MusicPlayer.jsx
+
 "use client";
 
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
@@ -52,8 +52,6 @@ function saveLyricsToCache(title, artist, lrc, synced) {
 
 // -----------------------------------------------------------------------------
 // SMART TEXT COLOR
-// Picks best readable color from album palette against the dark bg
-// Returns { active, past, dim, raw:[r,g,b] }
 // -----------------------------------------------------------------------------
 function getLuminance(r, g, b) {
   const toLinear = (c) => {
@@ -67,7 +65,6 @@ function getContrastRatio(l1, l2) {
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
 }
-
 function deriveTextColors(palette, bgRgb) {
   const fallback = {
     active: "rgba(255,255,255,1)",
@@ -76,34 +73,22 @@ function deriveTextColors(palette, bgRgb) {
     raw: [255, 255, 255],
   };
   if (!palette || !palette.length || !bgRgb) return fallback;
-
   const bgLum = getLuminance(...bgRgb);
-
-  // Try to find a palette color with good contrast AND good saturation
   let bestColor = null;
   let bestScore = 0;
-
   for (const [r, g, b] of palette) {
     const lum = getLuminance(r, g, b);
     const contrast = getContrastRatio(lum, bgLum);
-    // Saturation bonus: prefer vibrant colors over grays
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const saturation = max === 0 ? 0 : (max - min) / max;
-    // Score = contrast * (1 + saturation boost)
     const score = contrast * (1 + saturation * 0.5);
-    if (score > bestScore) {
-      bestScore = score;
-      bestColor = [r, g, b];
-    }
+    if (score > bestScore) { bestScore = score; bestColor = [r, g, b]; }
   }
-
-  // If still too low contrast, fall back to white or near-white
   const finalContrast = bestColor ? getContrastRatio(getLuminance(...bestColor), bgLum) : 0;
   if (!bestColor || finalContrast < 2.5) {
     bestColor = bgLum < 0.5 ? [255, 255, 255] : [20, 20, 30];
   }
-
   const [r, g, b] = bestColor;
   return {
     active: `rgba(${r},${g},${b},1)`,
@@ -232,18 +217,14 @@ const InstrumentalLine = ({ isActive, isPast, textColors }) => {
 };
 
 // -----------------------------------------------------------------------------
-// WORD-BY-WORD LYRIC LINE — 32px + smart palette color
+// WORD-BY-WORD LYRIC LINE
 // -----------------------------------------------------------------------------
 const LyricLine = ({
   line, nextLineTime, totalDuration, progress,
   isActive, isPast, isSynced, onClick, textColors,
 }) => {
   const words = line.text.split(" ");
-  const {
-    active: litClr,
-    past: pastClr,
-    dim: dimClr,
-  } = textColors || {
+  const { active: litClr, past: pastClr, dim: dimClr } = textColors || {
     active: "rgba(255,255,255,1)",
     past: "rgba(255,255,255,0.5)",
     dim: "rgba(255,255,255,0.18)",
@@ -260,19 +241,15 @@ const LyricLine = ({
   }
 
   return (
-    <p
-      onClick={onClick}
-      className="text-left leading-snug mb-7 select-none"
+    <p onClick={onClick} className="text-left leading-snug mb-7 select-none"
       style={{
-        fontSize: "32px",
-        fontWeight: 700,
+        fontSize: "32px", fontWeight: 700,
         cursor: isSynced && line.time !== null ? "pointer" : "default",
         transform: isActive ? "scale(1.04) translateZ(0)" : "scale(1) translateZ(0)",
         transformOrigin: "left center",
         willChange: "transform",
         transition: "transform 0.4s cubic-bezier(0.34, 1.2, 0.64, 1)",
-      }}
-    >
+      }}>
       {isSynced
         ? words.map((word, wi) => {
           const lit = isActive ? wi < litWords : isPast;
@@ -297,9 +274,11 @@ const LyricLine = ({
 
 // -----------------------------------------------------------------------------
 // LYRICS VIEW
-// Fixed-height container so scrolling actually works
-// Active line always at 40% from top — Apple Music style
+// — active line at 40% from top (Apple Music style)
+// — bottom padding prevents overlap with the "scroll up" button
 // -----------------------------------------------------------------------------
+const BOTTOM_BAR_HEIGHT = 80; // px — height of the floating bottom button area
+
 const LyricsView = ({
   lyrics, synced, progress, duration,
   isLoading, songTitle, seekTo, isVisible, textColors,
@@ -315,16 +294,17 @@ const LyricsView = ({
     ? lyrics.reduce((acc, line, i) => line.time !== null && progress >= line.time ? i : acc, -1)
     : -1;
 
-  // Scroll active line to 40% from top
   const scrollToActive = useCallback((idx, behavior = "smooth") => {
     const container = containerRef.current;
     const el = lineRefs.current[idx];
     if (!container || !el) return;
-    const targetScrollTop = el.offsetTop - container.offsetHeight * 0.4;
+    // Use available height minus bottom bar so active line never hides behind it
+    const usableHeight = container.offsetHeight - BOTTOM_BAR_HEIGHT;
+    const targetScrollTop = el.offsetTop - usableHeight * 0.4;
     container.scrollTo({ top: Math.max(0, targetScrollTop), behavior });
   }, []);
 
-  // First visit: instant jump, no animation from top
+  // First visit: instant jump
   useEffect(() => {
     if (!isVisible) { didJumpRef.current = false; return; }
     if (!synced || activeIdx < 0) return;
@@ -334,7 +314,7 @@ const LyricsView = ({
     }
   }, [isVisible, synced, activeIdx, scrollToActive]);
 
-  // Auto-scroll every time active line changes
+  // Auto-scroll on line change
   useEffect(() => {
     if (!synced || activeIdx < 0) return;
     if (activeIdx === prevActiveIdx.current) return;
@@ -358,10 +338,12 @@ const LyricsView = ({
 
   if (isLoading) {
     return (
-      <div style={{ height: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
         <div style={{
-          width: 32, height: 32, borderRadius: "50%", border: `2px solid rgba(${tr},${tg},${tb},0.25)`,
-          borderTopColor: `rgba(${tr},${tg},${tb},1)`, animation: "spin 0.8s linear infinite",
+          width: 32, height: 32, borderRadius: "50%",
+          border: `2px solid rgba(${tr},${tg},${tb},0.25)`,
+          borderTopColor: `rgba(${tr},${tg},${tb},1)`,
+          animation: "spin 0.8s linear infinite",
         }} />
         <p style={{ color: `rgba(${tr},${tg},${tb},0.5)`, fontSize: 14 }}>Finding lyrics...</p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -371,7 +353,7 @@ const LyricsView = ({
 
   if (!lyrics.length) {
     return (
-      <div style={{ height: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
         <Music2 style={{ width: 40, height: 40, color: `rgba(${tr},${tg},${tb},0.2)` }} />
         <p style={{ fontSize: 14, textAlign: "center", padding: "0 24px", color: `rgba(${tr},${tg},${tb},0.4)` }}>
           No lyrics available for<br />
@@ -382,80 +364,66 @@ const LyricsView = ({
   }
 
   return (
-    // Outer: clips overflow, full screen height
-    <div style={{ position: "relative", height: "100dvh", overflow: "hidden" }}>
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      style={{
+        height: "100%",
+        overflowY: "auto",
+        overflowX: "hidden",
+        padding: "0 28px",
+        // ↓ KEY FIX: bottom padding = bottom bar height so last lines scroll above it
+        paddingBottom: `${BOTTOM_BAR_HEIGHT + 20}px`,
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+    >
+      {/* Top spacer so first line can sit at 40% */}
+      <div style={{ height: "40vh" }} />
 
-      {/* Gradient fade masks — top and bottom */}
-      <div style={{
-        position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none",
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.92) 0%, transparent 18%, transparent 78%, rgba(0,0,0,0.92) 100%)",
-      }} />
-
-      {/* The actual scrollable list */}
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        style={{
-          position: "relative",
-          zIndex: 1,
-          height: "100%",
-          overflowY: "auto",
-          overflowX: "hidden",
-          padding: "0 28px",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
-        {/* Top spacer: allows first line to be positioned at 40% */}
-        <div style={{ height: "18vh" }} />
-
-        {lyrics.map((line, i) => {
-          let nextLineTime = null;
-          for (let j = i + 1; j < lyrics.length; j++) {
-            if (!lyrics[j].isInstrumental && lyrics[j].time !== null) {
-              nextLineTime = lyrics[j].time;
-              break;
-            }
+      {lyrics.map((line, i) => {
+        let nextLineTime = null;
+        for (let j = i + 1; j < lyrics.length; j++) {
+          if (!lyrics[j].isInstrumental && lyrics[j].time !== null) {
+            nextLineTime = lyrics[j].time;
+            break;
           }
+        }
 
-          if (line.isInstrumental) {
-            const isActive = synced && progress >= line.time && progress < (line.gapEnd ?? Infinity);
-            const isPast = synced && progress >= (line.gapEnd ?? Infinity);
-            return (
-              <div key={`inst-${i}`} ref={(el) => (lineRefs.current[i] = el)}>
-                <InstrumentalLine isActive={isActive} isPast={isPast} textColors={textColors} />
-              </div>
-            );
-          }
-
+        if (line.isInstrumental) {
+          const isActive = synced && progress >= line.time && progress < (line.gapEnd ?? Infinity);
+          const isPast = synced && progress >= (line.gapEnd ?? Infinity);
           return (
-            <div key={i} ref={(el) => (lineRefs.current[i] = el)}>
-              <LyricLine
-                line={line}
-                nextLineTime={nextLineTime}
-                totalDuration={duration}
-                progress={progress}
-                isActive={synced && i === activeIdx}
-                isPast={synced && i < activeIdx}
-                isSynced={synced}
-                textColors={textColors}
-                onClick={() => { if (synced && line.time !== null && seekTo) seekTo(line.time); }}
-              />
+            <div key={`inst-${i}`} ref={(el) => (lineRefs.current[i] = el)}>
+              <InstrumentalLine isActive={isActive} isPast={isPast} textColors={textColors} />
             </div>
           );
-        })}
+        }
 
-        {/* Bottom spacer: lets last lines scroll all the way up */}
-        <div style={{ height: "120px" }} />
+        return (
+          <div key={i} ref={(el) => (lineRefs.current[i] = el)}>
+            <LyricLine
+              line={line}
+              nextLineTime={nextLineTime}
+              totalDuration={duration}
+              progress={progress}
+              isActive={synced && i === activeIdx}
+              isPast={synced && i < activeIdx}
+              isSynced={synced}
+              textColors={textColors}
+              onClick={() => { if (synced && line.time !== null && seekTo) seekTo(line.time); }}
+            />
+          </div>
+        );
+      })}
 
-        <style>{`
-          @keyframes wordPop {
-            0%   { transform: scale(1); }
-            50%  { transform: scale(1.14); }
-            100% { transform: scale(1); }
-          }
-        `}</style>
-      </div>
+      <style>{`
+        @keyframes wordPop {
+          0%   { transform: scale(1); }
+          50%  { transform: scale(1.14); }
+          100% { transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -484,11 +452,9 @@ const FullScreenPlayer = ({
   const progressPercent = duration ? (progress / duration) * 100 : 0;
   const isMuted = volume === 0;
 
-  // Smart text color derived from album palette vs bg
   const textColors = useMemo(() => deriveTextColors(palette, bgRgb), [palette, bgRgb]);
   const [tr, tg, tb] = textColors?.raw || [255, 255, 255];
 
-  // Palette extraction from cover art
   useEffect(() => {
     if (!currentSong?.cover_url) return;
     const img = new Image();
@@ -510,7 +476,6 @@ const FullScreenPlayer = ({
     };
   }, [currentSong?.cover_url]);
 
-  // Fetch lyrics
   useEffect(() => {
     if (!currentSong) return;
     setLyrics([]);
@@ -544,7 +509,6 @@ const FullScreenPlayer = ({
     });
   }, [currentSong?.id]);
 
-  // Seek handlers
   const updateSeek = (clientX) => {
     const rect = seekBarRef.current.getBoundingClientRect();
     const pct = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
@@ -587,21 +551,8 @@ const FullScreenPlayer = ({
       </button>
 
       {/* Snap scroll outer */}
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        style={{
-          position: "relative",
-          zIndex: 1,
-          height: "100%",
-          overflowY: "auto",
-          overflowX: "hidden",
-          padding: "0 28px",
-          paddingBottom: "80px",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
+      <div ref={scrollRef} onScroll={handleScroll} className="absolute inset-0 overflow-y-auto"
+        style={{ scrollSnapType: "y mandatory", scrollbarWidth: "none" }}>
 
         {/* ════ SECTION 1 — PLAYER ════ */}
         <div className="flex items-center justify-center p-4" style={{ minHeight: "100dvh", scrollSnapAlign: "start" }}>
@@ -680,9 +631,11 @@ const FullScreenPlayer = ({
         </div>
 
         {/* ════ SECTION 2 — LYRICS ════ */}
-        {/* ════ SECTION 2 — LYRICS ════ */}
-        <div className="flex flex-col w-full" style={{ minHeight: "100dvh", scrollSnapAlign: "start", position: "relative" }}>
-          <div className="flex-1 w-full relative z-10">
+        {/* position:relative so the absolute bottom bar is anchored here */}
+        <div style={{ minHeight: "100dvh", scrollSnapAlign: "start", position: "relative" }}>
+
+          {/* Lyrics scroll area — takes full height */}
+          <div style={{ position: "absolute", inset: 0 }}>
             <LyricsView
               lyrics={lyrics}
               synced={lyricsSynced}
@@ -696,28 +649,42 @@ const FullScreenPlayer = ({
             />
           </div>
 
-          {/* Floating bottom button — overlays lyrics with fade */}
+          {/* Floating bottom button — always on top, never overlaps lyrics text */}
           <div style={{
             position: "absolute",
             bottom: 0, left: 0, right: 0,
+            height: `${BOTTOM_BAR_HEIGHT}px`,
             zIndex: 20,
-            paddingBottom: "24px",
-            paddingTop: "60px",
-            background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.85) 60%)",
+            pointerEvents: "none",
+            // Gradient so lyrics fade out cleanly into the button
+            background: `linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.75) 50%, rgba(0,0,0,0.92) 100%)`,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            justifyContent: "flex-end",
+            paddingBottom: "18px",
             gap: 4,
-            pointerEvents: "none",
           }}>
             <button
-              style={{ color: `rgba(${tr},${tg},${tb},0.4)`, fontSize: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "auto" }}
+              style={{
+                pointerEvents: "auto",
+                color: `rgba(${tr},${tg},${tb},0.45)`,
+                fontSize: 12,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
               onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}>
               <ChevronDown className="w-4 h-4 rotate-180" />
               <span>scroll up for player</span>
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );
