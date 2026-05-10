@@ -379,7 +379,7 @@ const LyricsView = ({
       }}
     >
       {/* Top spacer so first line can sit at 40% */}
-      <div style={{ height: "10vh" }} />
+      <div style={{ height: "20vh" }} />
 
       {lyrics.map((line, i) => {
         let nextLineTime = null;
