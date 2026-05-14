@@ -30,7 +30,7 @@ const LYRICS_CACHE_PREFIX = "lyrics_cache__";
 const LYRICS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function lyricsCacheKey(title, artist) {
-  return `${LYRICS_CACHE_PREFIX}${title}__${artist}`.toLowerCase().replace(/\s+/g, "_");
+  return `${LYRICS_CACHE_PREFIX}${title}__${artist}`.toLowerCase().replace(/\s+/g, "_")
 }
 function getLyricsFromCache(title, artist) {
   try {
@@ -50,9 +50,7 @@ function saveLyricsToCache(title, artist, lrc, synced) {
   } catch { }
 }
 
-// -----------------------------------------------------------------------------
-// SMART TEXT COLOR
-// -----------------------------------------------------------------------------
+
 function getLuminance(r, g, b) {
   const toLinear = (c) => {
     const s = c / 255;
@@ -98,15 +96,13 @@ function deriveTextColors(palette, bgRgb) {
   };
 }
 
-// -----------------------------------------------------------------------------
-// LYRICS UTILS
-// -----------------------------------------------------------------------------
 async function fetchLyricsFromSources(title, artist) {
   try {
     const r = await fetch(
       `https://lrclib.net/api/get?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`
     );
     if (r.ok) {
+
       const d = await r.json();
       if (d.syncedLyrics) return { lrc: d.syncedLyrics, synced: true };
       if (d.plainLyrics) return { lrc: d.plainLyrics, synced: false };
@@ -202,7 +198,7 @@ const InstrumentalLine = ({ isActive, isPast, textColors }) => {
       <span style={{
         fontSize: 16, fontWeight: 500,
         color: `rgba(${r},${g},${b},${isActive ? 0.9 : 0.5})`,
-        letterSpacing: "0.12em", fontStyle: "italic",
+        letterSpacing: "0.12em",
       }}>
         instrumental
       </span>
@@ -372,13 +368,12 @@ const LyricsView = ({
         overflowY: "auto",
         overflowX: "hidden",
         padding: "0 28px",
-        // ↓ KEY FIX: bottom padding = bottom bar height so last lines scroll above it
         paddingBottom: `${BOTTOM_BAR_HEIGHT + 20}px`,
         scrollbarWidth: "none",
         msOverflowStyle: "none",
       }}
     >
-      {/* Top spacer so first line can sit at 40% */}
+
       <div style={{ height: "20vh" }} />
 
       {lyrics.map((line, i) => {
@@ -690,9 +685,6 @@ const FullScreenPlayer = ({
   );
 };
 
-// -----------------------------------------------------------------------------
-// MAIN MusicPlayer COMPONENT (mini bar)
-// -----------------------------------------------------------------------------
 export default function MusicPlayer() {
   const {
     currentSong, isPlaying, togglePlay, playNext, playPrev,
