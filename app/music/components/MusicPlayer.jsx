@@ -524,26 +524,111 @@ const FullScreenPlayer = ({
     <div className="fixed inset-0 z-[100]">
       <AppleMusicBg baseColor={baseColor} blobColors={blobColors} />
 
-      {/* Mini floating card */}
-      <div className={`absolute top-3 w-[86%] left-3 z-30 flex items-center gap-2.5
-        bg-white/10 backdrop-blur-2xl border border-white/15 rounded-2xl p-2.5
-        transition-all duration-500 ease-out
-        ${showLyrics ? "opacity-100 translate-y-0 scale-100 pointer-events-auto" : "opacity-0 -translate-y-2 scale-95 pointer-events-none"}`}>
-        <img src={currentSong.cover_url} alt="cover" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-        <div className="overflow-hidden max-w-[150px]">
-          <p className="text-[11px] font-medium truncate" style={{ color: `rgba(${tr},${tg},${tb},1)` }}>{currentSong.title}</p>
-          <p className="text-[10px] truncate" style={{ color: `rgba(${tr},${tg},${tb},0.55)` }}>
-            {currentSong.artists?.name || currentSong.artist_name || "Unknown Artist"}
-          </p>
-        </div>
-      </div>
+     {/* ── Unified top bar: song info + controls + minimize ── */}
+<div
+  className={`absolute top-3 left-3 right-3 z-30
+    transition-all duration-500 ease-out
+    ${showLyrics ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-3 pointer-events-none"}`}
+  style={{
+    background: `rgba(${tr},${tg},${tb},0.08)`,
+    backdropFilter: "blur(32px) saturate(180%)",
+    WebkitBackdropFilter: "blur(32px) saturate(180%)",
+    border: `1px solid rgba(${tr},${tg},${tb},0.18)`,
+    borderRadius: "20px",
+    boxShadow: `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(${tr},${tg},${tb},0.15)`,
+    padding: "10px 12px",
+  }}
+>
+  <div className="flex items-center gap-3">
+
+    {/* Album art with glow */}
+    <div className="relative flex-shrink-0">
+      <img
+        src={currentSong.cover_url}
+        alt="cover"
+        className="w-11 h-11 rounded-xl object-cover"
+        style={{ boxShadow: `0 4px 16px rgba(${tr},${tg},${tb},0.25)` }}
+      />
+      {/* subtle pulse ring when playing */}
+      {isPlaying && (
+        <div className="absolute inset-0 rounded-xl animate-ping"
+          style={{ border: `1.5px solid rgba(${tr},${tg},${tb},0.35)`, animationDuration: "2s" }} />
+      )}
+    </div>
+
+    {/* Title + artist */}
+    <div className="flex-1 overflow-hidden min-w-0">
+      <p className="text-[12px] font-semibold truncate leading-tight"
+        style={{ color: `rgba(${tr},${tg},${tb},1)` }}>
+        {currentSong.title}
+      </p>
+      <p className="text-[10px] truncate mt-0.5"
+        style={{ color: `rgba(${tr},${tg},${tb},0.5)` }}>
+        {currentSong.artists?.name || currentSong.artist_name || "Unknown Artist"}
+      </p>
+    </div>
+
+    {/* Playback controls */}
+    <div className="flex items-center gap-1 flex-shrink-0">
+      {/* Prev */}
+      <button
+        onClick={handlePrevClick}
+        className="p-2 rounded-full transition-all active:scale-90"
+        style={{ color: `rgba(${tr},${tg},${tb},0.75)` }}
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M11.5 5.515C11.5 4.394 10.252 3.728 9.324 4.355L1.871 9.389C1.045 9.947 1.045 11.164 1.871 11.722L9.324 16.757C10.252 17.384 11.5 16.718 11.5 15.597V5.515Z"/>
+          <path d="M22.5 5.515C22.5 4.394 21.252 3.728 20.324 4.355L12.871 9.389C12.045 9.947 12.045 11.164 12.871 11.722L20.324 16.757C21.252 17.384 22.5 16.718 22.5 15.597V5.515Z"/>
+        </svg>
+      </button>
+
+      {/* Play / Pause */}
+      <button
+        onClick={togglePlay}
+        className="p-2 rounded-full transition-all active:scale-90 hover:scale-105"
+        style={{
+          background: `rgba(${tr},${tg},${tb},1)`,
+          color: baseColor,
+          boxShadow: `0 2px 12px rgba(${tr},${tg},${tb},0.4)`,
+        }}
+      >
+        {isPlaying
+          ? <Pause className="w-4 h-4" />
+          : <Play className="w-4 h-4" />
+        }
+      </button>
+
+      {/* Next */}
+      <button
+        onClick={playNext}
+        className="p-2 rounded-full transition-all active:scale-90"
+        style={{ color: `rgba(${tr},${tg},${tb},0.75)` }}
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12.5 5.515C12.5 4.394 13.748 3.728 14.676 4.355L22.129 9.389C22.955 9.947 22.955 11.164 22.129 11.722L14.676 16.757C13.748 17.384 12.5 16.718 12.5 15.597V5.515Z"/>
+          <path d="M1.5 5.515C1.5 4.394 2.748 3.728 3.676 4.355L11.129 9.389C11.955 9.947 11.955 11.164 11.129 11.722L3.676 16.757C2.748 17.384 1.5 16.718 1.5 15.597V5.515Z"/>
+        </svg>
+      </button>
+
+      {/* Divider */}
+      <div className="w-px h-5 mx-1 rounded-full"
+        style={{ background: `rgba(${tr},${tg},${tb},0.2)` }} />
 
       {/* Minimize */}
-      <button onClick={toggleFullscreen}
-        className="absolute top-3 right-3 z-30 p-2.5 rounded-full backdrop-blur-md border transition shadow-lg"
-        style={{ color: `rgba(${tr},${tg},${tb},0.9)`, borderColor: `rgba(${tr},${tg},${tb},0.25)`, background: `rgba(${tr},${tg},${tb},0.1)` }}>
-        <Minimize className="w-5 h-5" />
+      <button
+        onClick={toggleFullscreen}
+        className="p-2 rounded-full transition-all active:scale-90"
+        style={{
+          color: `rgba(${tr},${tg},${tb},0.7)`,
+          background: `rgba(${tr},${tg},${tb},0.1)`,
+        }}
+      >
+        <Minimize className="w-4 h-4" />
       </button>
+    </div>
+
+  </div>
+</div>
 
       {/* Snap scroll outer */}
       <div ref={scrollRef} onScroll={handleScroll} className="absolute inset-0 overflow-y-auto"
