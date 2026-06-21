@@ -11,7 +11,7 @@ const supabase = createClient(
 
 // Use server-only secret (remove NEXT_PUBLIC_ prefix in production)
 const SECRET_ENV_NAME = "JWT_SECRET"; // recommend this
-const rawSecret = process.env[SECRET_ENV_NAME];
+const rawSecret = process.env.JWT_SECRET;
 
 if (!rawSecret) {
   console.error(`[getUser] Missing env var ${SECRET_ENV_NAME}`);
