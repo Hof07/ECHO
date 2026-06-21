@@ -20,14 +20,13 @@ export async function POST(req) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
-    // FETCH USER FROM profiles TABLE
-    const { data: user, error } = await supabase
-      .from("profiles")                        // ← profiles table
-      .select("*")
-      .or(
-        `email.eq.${identifier.toLowerCase()},username.eq.${identifier.toLowerCase()}`
-      )
-      .single();
+    const safeId = identifier.toLowerCase().replace(/[,()]/g, "");
+
+const { data: user, error } = await supabase
+  .from("profiles")
+  .select("*")
+  .or(`email.eq.${safeId},username.eq.${safeId}`)
+  .single();
 
     if (error || !user) {
       return NextResponse.json(
