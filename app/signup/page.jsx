@@ -137,7 +137,7 @@ export default function SignupPage() {
 
   // --- FINAL SIGNUP HANDLER (STAGE 4) ---
 
-  //   const SECRET_KEY = process.env.NEXT_PUBLIC_JWT_SECRET; // MAKE SURE THIS EXISTS
+  //   const SECRET_KEY = process.env.JWT_SECRET; // MAKE SURE THIS EXISTS
 
   const handleSignup = async (e) => {
     e.preventDefault();

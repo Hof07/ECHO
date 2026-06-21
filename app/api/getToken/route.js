@@ -17,7 +17,7 @@ export async function GET(req) {
       );
     }
 
-    const SECRET = new TextEncoder().encode(process.env.NEXT_PUBLIC_JWT_SECRET);
+    const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
     const { payload } = await jwtVerify(token, SECRET);
     const userId = payload.id;
 
