@@ -71,7 +71,6 @@ export const PlayerProvider = ({ children }) => {
   const sourceNode = useRef(null);
   const lastTimeRef = useRef(0);
   const lastSrcRef  = useRef(null);
-  const crossfadeTriggeredRef = useRef(false);
   const deviceTierRef = useRef(2);
 
   const togglePlayRef = useRef(null);
@@ -119,7 +118,6 @@ export const PlayerProvider = ({ children }) => {
   const [playbackRate,    setPlaybackRate]    = useState(1.0);
   const [listenedSeconds, setListenedSeconds] = useState(0);
   const [isLoading,       setIsLoading]       = useState(true);
-  const [isCrossfading,   setIsCrossfading]   = useState(false);
 
   /* =========================================================
       1. HYDRATION
@@ -482,7 +480,6 @@ export const PlayerProvider = ({ children }) => {
     setCurrentIndex(index);
     setCurrentSong(song);
     setIsPlaying(true);
-    crossfadeTriggeredRef.current = false;
   };
 
   const playNext = useCallback(async () => {
@@ -490,7 +487,6 @@ export const PlayerProvider = ({ children }) => {
     const i = (currentIndex + 1) % playlist.length;
     if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
     setCurrentIndex(i); setCurrentSong(playlist[i]); setIsPlaying(true);
-    crossfadeTriggeredRef.current = false;
   }, [playlist, currentIndex]);
 
   const playPrev = useCallback(async () => {
@@ -498,100 +494,11 @@ export const PlayerProvider = ({ children }) => {
     const i = (currentIndex - 1 + playlist.length) % playlist.length;
     if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
     setCurrentIndex(i); setCurrentSong(playlist[i]); setIsPlaying(true);
-    crossfadeTriggeredRef.current = false;
   }, [playlist, currentIndex]);
 
   useEffect(() => { togglePlayRef.current = togglePlay; }, [togglePlay]);
   useEffect(() => { playNextRef.current   = playNext;   }, [playNext]);
   useEffect(() => { playPrevRef.current   = playPrev;   }, [playPrev]);
-
-  /* =========================================================
-      5B. CROSSFADE
-     ========================================================= */
-  const handleCrossfade = useCallback(async () => {
-    if (
-      !audioCtx.current || !outputGain.current || !compressor.current ||
-      isCrossfading || isLoop || playlist.length < 2 ||
-      crossfadeTriggeredRef.current
-    ) return;
-
-    const nextIdx  = (currentIndex + 1) % playlist.length;
-    const nextSong = playlist[nextIdx];
-    if (!nextSong) return;
-
-    crossfadeTriggeredRef.current = true;
-    setIsCrossfading(true);
-
-    const ctx  = audioCtx.current;
-    const tier = deviceTierRef.current;
-    const FADE = tier === 0 ? 3 : tier === 1 ? 4 : 5;
-    const now  = ctx.currentTime;
-
-    try {
-      const nextAudio = new Audio(nextSong.audio_url);
-      nextAudio.crossOrigin = "anonymous";
-      nextAudio.preload = "auto";
-      nextAudio.volume  = 0;
-
-      await new Promise((res, rej) => {
-        nextAudio.addEventListener("canplaythrough", res, { once: true });
-        nextAudio.addEventListener("error", rej, { once: true });
-        setTimeout(res, tier === 0 ? 4000 : 3000);
-        nextAudio.load();
-      });
-
-      const nextSource = ctx.createMediaElementSource(nextAudio);
-      const nextGain   = ctx.createGain();
-      nextGain.gain.setValueAtTime(0, now);
-      nextSource.connect(nextGain);
-      nextGain.connect(compressor.current);
-      nextAudio.volume = 1;
-      await nextAudio.play();
-
-      outputGain.current.gain.cancelScheduledValues(now);
-      outputGain.current.gain.setValueAtTime(outputGain.current.gain.value, now);
-      outputGain.current.gain.linearRampToValueAtTime(0, now + FADE);
-      nextGain.gain.setValueAtTime(0, now);
-      nextGain.gain.linearRampToValueAtTime(0.3, now + FADE * 0.4);
-      nextGain.gain.linearRampToValueAtTime(1.0, now + FADE);
-
-      setTimeout(async () => {
-        try {
-          const resumeAt = nextAudio.currentTime;
-          audioRef.current.pause();
-          nextSource.disconnect(); nextGain.disconnect(); nextAudio.pause();
-          audioRef.current.src = nextSong.audio_url;
-          lastSrcRef.current   = nextSong.audio_url;
-          audioRef.current.load();
-          await new Promise((res) => {
-            audioRef.current.addEventListener("canplay", () => {
-              if (resumeAt > 0) audioRef.current.currentTime = resumeAt; res();
-            }, { once: true });
-            setTimeout(() => { if (resumeAt > 0) audioRef.current.currentTime = resumeAt; res(); }, 2000);
-          });
-          const targetGain = isEnhanced ? (tier === 0 ? 0.82 : tier === 1 ? 0.74 : 0.68) : 1;
-          outputGain.current.gain.cancelScheduledValues(ctx.currentTime);
-          outputGain.current.gain.setValueAtTime(targetGain, ctx.currentTime);
-          if (audioCtx.current?.state === "suspended") await audioCtx.current.resume();
-          await audioRef.current.play();
-          setCurrentIndex(nextIdx); setCurrentSong(nextSong); setProgress(resumeAt); setDuration(0);
-        } catch (err) {
-          console.error("Crossfade handoff failed:", err);
-          outputGain.current?.gain.setValueAtTime(1, ctx.currentTime);
-          setCurrentIndex(nextIdx); setCurrentSong(nextSong); setIsPlaying(true);
-        } finally {
-          setIsCrossfading(false);
-          crossfadeTriggeredRef.current = false;
-        }
-      }, FADE * 1000);
-    } catch (err) {
-      console.error("Crossfade preload failed:", err);
-      setIsCrossfading(false);
-      crossfadeTriggeredRef.current = false;
-      const i = (currentIndex + 1) % playlist.length;
-      setCurrentIndex(i); setCurrentSong(playlist[i]); setIsPlaying(true);
-    }
-  }, [playlist, currentIndex, isCrossfading, isLoop, isEnhanced]);
 
   /* =========================================================
       6. MEDIA SESSION
@@ -627,8 +534,6 @@ export const PlayerProvider = ({ children }) => {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const tier = deviceTierRef.current;
-    const xfadeOffset = tier === 0 ? 3 : tier === 1 ? 4 : 5;
 
     const onTimeUpdate = () => {
       setProgress(audio.currentTime);
@@ -641,10 +546,6 @@ export const PlayerProvider = ({ children }) => {
           });
         } catch(e) {}
       }
-      if (
-        audio.duration && audio.duration - audio.currentTime <= xfadeOffset &&
-        !isCrossfading && isPlaying && !isLoop && !crossfadeTriggeredRef.current
-      ) handleCrossfade();
     };
     const onLoadedMetadata = () => {
       if (audio.duration) setDuration(audio.duration);
@@ -652,7 +553,7 @@ export const PlayerProvider = ({ children }) => {
     };
     const onPlay  = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
-    const onEnded = () => { if (!isLoop && !crossfadeTriggeredRef.current) playNext(); };
+    const onEnded = () => { if (!isLoop) playNext(); };
 
     audio.addEventListener("timeupdate",     onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -668,7 +569,7 @@ export const PlayerProvider = ({ children }) => {
       audio.removeEventListener("pause",          onPause);
       audio.removeEventListener("ended",          onEnded);
     };
-  }, [isLoop, playNext, handleCrossfade, isCrossfading, isPlaying]);
+  }, [isLoop, playNext]);
 
   /* =========================================================
       8. SOURCE LOADING
